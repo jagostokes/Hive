@@ -12,6 +12,7 @@ import { buildContext, type ContextProvider, type ResultRow } from "../context/i
 import {
   runPlanner,
   runSqlAgent,
+  adaptCachedSql,
   runInsightAgent,
   runDashboardPlanAgent,
   runCodeGenAgent,
@@ -33,8 +34,15 @@ export interface LaneResult {
   id: string;
   question: string;
   ok: boolean;
-  /** Where the SQL came from: a cache hit or fresh generation. */
-  sqlSource?: "cache" | "generated";
+  /**
+   * Where the SQL came from:
+   *  - "cache": a near-exact hit, reused verbatim (one embedding, ~$0, no SQL gen)
+   *  - "cache-adapted": a near match adapted with a single cheap model call
+   *  - "generated": full SQL agent (generate → retry → escalate)
+   */
+  sqlSource?: "cache" | "cache-adapted" | "generated";
+  /** Cosine similarity of the cache hit that produced the SQL, if any. */
+  cacheSimilarity?: number;
   sql?: string;
   rows?: ResultRow[];
   insight?: string;
@@ -59,11 +67,42 @@ export interface DashboardSpec {
   charts: DashboardChart[];
 }
 
+/** Per-chart shape handed to codeGen AND injected as the `data` prop (see designBrief). */
+export interface DashboardViewChart {
+  id: string;
+  question: string;
+  plan: unknown;
+  rows: ResultRow[];
+  insight?: string;
+}
+
+/** The exact object the rendered component receives as its `data` prop. */
+export interface DashboardView {
+  title: string;
+  charts: DashboardViewChart[];
+}
+
+/** Translate the internal spec (rows under `data`) into the render contract (rows under `rows`). */
+function toDashboardView(spec: DashboardSpec): DashboardView {
+  return {
+    title: spec.title,
+    charts: spec.charts.map((c) => ({
+      id: c.id,
+      question: c.question,
+      plan: c.plan,
+      rows: c.data,
+      ...(c.insight ? { insight: c.insight } : {}),
+    })),
+  };
+}
+
 export interface BrainResult {
   ok: boolean;
   question: string;
   plan: Plan | null;
   lanes: LaneResult[];
+  /** Sub-questions whose SQL came from the cache (reused or adapted). */
+  cacheHits: number;
   dashboard: {
     spec: DashboardSpec;
     code: string;
@@ -92,6 +131,11 @@ export interface BrainOptions {
   freshLedger?: boolean;
 }
 
+// At or above this cosine similarity a cache hit is treated as the SAME question
+// and the cached SQL is reused verbatim (no model call). Below it (down to the
+// lookup threshold) the cached SQL is adapted with one cheap call instead.
+const EXACT_REUSE_THRESHOLD = 0.93;
+
 interface LaneDeps {
   context: ContextProvider;
   db: Pool;
@@ -112,25 +156,43 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
 
   let sql: string | undefined;
   let rows: ResultRow[] | undefined;
-  let sqlSource: "cache" | "generated" | undefined;
+  let sqlSource: "cache" | "cache-adapted" | "generated" | undefined;
+  let cacheSimilarity: number | undefined;
 
-  // SQL step, cache-first. A near-duplicate sub-question reuses cached SQL,
-  // skipping fresh generation; we still execute it to get rows and require a
-  // non-empty result, otherwise we fall back to generating.
+  // SQL step, cache-first. On a cache hit we either:
+  //  - reuse the cached SQL verbatim when the match is near-exact (one embedding,
+  //    ~$0, no SQL generation at all), or
+  //  - adapt it to this sub-question with a SINGLE cheap model call (skeleton
+  //    reuse) when it's a looser paraphrase.
+  // Either way the SQL is executed/verified and must return rows; otherwise we
+  // fall back to full generation below.
   const lookup = await cacheLookup(node.question, {
     pool: deps.db,
     ...(deps.cacheThreshold !== undefined ? { threshold: deps.cacheThreshold } : {}),
   });
   if (lookup.hit) {
-    try {
-      const r = await runReadOnlyQuery(lookup.sql, deps.db);
-      if (r.rows.length > 0) {
-        sql = lookup.sql;
-        rows = r.rows;
-        sqlSource = "cache";
+    cacheSimilarity = lookup.similarity;
+    if (lookup.similarity >= EXACT_REUSE_THRESHOLD) {
+      try {
+        const r = await runReadOnlyQuery(lookup.sql, deps.db);
+        if (r.rows.length > 0) {
+          sql = lookup.sql;
+          rows = r.rows;
+          sqlSource = "cache";
+        }
+      } catch {
+        // Cached SQL no longer valid (e.g. schema changed) — regenerate below.
       }
-    } catch {
-      // Cached SQL no longer valid (e.g. schema changed) — regenerate below.
+    } else {
+      // Looser match: adapt the cached skeleton with one cheap call.
+      const adapted = await adaptCachedSql(node.question, lookup.cachedQuestion, lookup.sql, {
+        db: deps.db,
+      });
+      if (adapted.ok && adapted.sql && adapted.rows && adapted.rows.length > 0) {
+        sql = adapted.sql;
+        rows = adapted.rows;
+        sqlSource = "cache-adapted";
+      }
     }
   }
 
@@ -165,6 +227,7 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
       sql,
       rows,
       sqlSource,
+      ...(cacheSimilarity !== undefined ? { cacheSimilarity } : {}),
       ...(insight ? { insight } : {}),
       finishedAt: Date.now(),
     };
@@ -176,6 +239,7 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
     sql,
     rows,
     sqlSource,
+    ...(cacheSimilarity !== undefined ? { cacheSimilarity } : {}),
     ...(insight ? { insight } : {}),
     plan: planRes.data.plan,
     finishedAt: Date.now(),
@@ -198,6 +262,7 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
     question,
     plan: null,
     lanes: [],
+    cacheHits: 0,
     dashboard: null,
     server: null,
     ledger: getLedger(),
@@ -235,14 +300,20 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
       ...(l.insight ? { insight: l.insight } : {}),
     }));
   const spec: DashboardSpec = { title: question, charts };
+  const cacheHits = lanes.filter(
+    (l) => l.ok && (l.sqlSource === "cache" || l.sqlSource === "cache-adapted"),
+  ).length;
 
   if (charts.length === 0) {
-    return finish({ plan, lanes, reason: "no sub-question produced a usable chart" });
+    return finish({ plan, lanes, cacheHits, reason: "no sub-question produced a usable chart" });
   }
 
   // 5. codeGen the combined dashboard; if it can't render, hand the broken
-  //    output to codeEdit (its dedicated job).
-  const codeGen = await runCodeGenAgent(spec, [], { context });
+  //    output to codeEdit (its dedicated job). The render view (rows under
+  //    `rows`) is BOTH the codeGen context and the runtime `data` prop, so the
+  //    component the model writes binds to exactly the object it is given.
+  const view = toDashboardView(spec);
+  const codeGen = await runCodeGenAgent(view, [], { context });
   let code: string;
   let renderOk: boolean;
   let codeEditUsed = false;
@@ -263,7 +334,7 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
   }
 
   // 6. Serve on localhost and return the brain ledger.
-  const html = buildDashboardHtml(code, spec, `Hive — ${question}`);
+  const html = buildDashboardHtml(code, view, `Hive — ${question}`);
   const server = opts.serve === false ? null : await serveDashboard(html, { port: opts.port ?? 0 });
 
   return {
@@ -271,6 +342,7 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
     question,
     plan,
     lanes,
+    cacheHits,
     dashboard: { spec, code, html, renderOk, codeEditUsed },
     server,
     ledger: getLedger(),

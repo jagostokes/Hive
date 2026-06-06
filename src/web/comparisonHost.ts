@@ -14,6 +14,8 @@ interface LaneState {
   status: "running" | "done" | "failed" | "error";
   html: string | null;
   error?: string;
+  /** Sub-questions served from cache (brain only). Populated when the lane settles. */
+  cacheHits?: number;
 }
 
 interface ComparisonState {
@@ -62,6 +64,7 @@ export async function serveComparison(
       state.brain = {
         status: r.ok ? "done" : "failed",
         html: r.dashboard?.html ?? laneErrorHtml("brain", r.reason ?? "no dashboard produced"),
+        cacheHits: r.cacheHits,
         ...(r.reason ? { error: r.reason } : {}),
       };
     })
@@ -140,6 +143,7 @@ export function buildStatePayload(state: ComparisonState): unknown {
       completionTokens: b.completionTokens,
       costUsd: b.costUsd,
       models: uniqueModels("brain"),
+      cacheHits: state.brain.cacheHits ?? 0,
     },
     baseline: {
       status: state.baseline.status,
@@ -202,6 +206,7 @@ function comparisonPageHtml(question: string): string {
       <div>out <span class="n" id="brain-out">0</span></div>
       <div>calls <span class="n" id="brain-calls">0</span></div>
       <div>cost <span class="n" id="brain-cost">$0.000000</span></div>
+      <div>cache hits <span class="n" id="brain-cache">0</span></div>
     </div>
     <div class="models" id="brain-models"></div>
     <iframe id="brain-frame" title="brain dashboard"></iframe>
@@ -228,6 +233,9 @@ function comparisonPageHtml(question: string): string {
     document.getElementById(lane+'-cost').textContent = '$' + Number(d.costUsd).toFixed(6);
     document.getElementById(lane+'-status').textContent = d.status;
     document.getElementById(lane+'-models').textContent = d.models.length ? 'models: ' + d.models.join(', ') : '';
+    if (lane === 'brain' && document.getElementById('brain-cache')) {
+      document.getElementById('brain-cache').textContent = fmt(d.cacheHits || 0);
+    }
     if ((d.status === 'done' || d.status === 'failed' || d.status === 'error') && !framesLoaded[lane]) {
       framesLoaded[lane] = true;
       document.getElementById(lane+'-frame').src = '/' + lane + '?t=' + Date.now();

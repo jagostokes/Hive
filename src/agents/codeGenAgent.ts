@@ -5,10 +5,14 @@ import { runAgent, type AgentResult, type AttemptFeedback } from "./runner.js";
 import { renderVerifier } from "../verifiers/index.js";
 import { stripCodeFence } from "./parse.js";
 import { escalationFor } from "../../config/models.js";
+import { DASHBOARD_DESIGN_BRIEF, DASHBOARD_DATA_CONTRACT } from "../web/designBrief.js";
 import type { ContextProvider, ResultRow, CodeGenContext } from "../context/index.js";
 
-const SYSTEM_PROMPT =
-  "Given a chart spec and data, output one self-contained React component. Code only.";
+const SYSTEM_PROMPT = [
+  "Given a dashboard spec and its data, output ONE self-contained React component. Code only.",
+  "",
+  DASHBOARD_DESIGN_BRIEF,
+].join("\n");
 
 export interface CodeGenAgentDeps {
   context: ContextProvider;
@@ -34,7 +38,7 @@ export async function runCodeGenAgent(
     escalationRole: escalationFor("codeGen"),
     lane: "brain",
     temperature: 0,
-    maxTokens: 1500,
+    maxTokens: 3500,
     buildUserMessage: (feedback) => buildUserMessage(scoped, feedback),
     parse: (raw) => stripCodeFence(raw),
     verify: (code) => {
@@ -49,12 +53,17 @@ function buildUserMessage(
   feedback: AttemptFeedback | null,
 ): string {
   const parts: string[] = [
-    "Chart spec:",
-    JSON.stringify(scoped.plan),
+    DASHBOARD_DATA_CONTRACT,
     "",
-    "Data:",
-    JSON.stringify(scoped.data),
+    "DASHBOARD (this is exactly the `data` prop):",
+    JSON.stringify(scoped.plan),
   ];
+
+  // The orchestrator carries everything in `plan` (the full view incl. rows).
+  // Only show the legacy `data` slot when something is actually passed there.
+  if (Array.isArray(scoped.data) && scoped.data.length > 0) {
+    parts.push("", "Additional data rows:", JSON.stringify(scoped.data));
+  }
 
   if (feedback) {
     parts.push(

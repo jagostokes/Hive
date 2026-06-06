@@ -14,10 +14,13 @@ export {
 } from "./runner.js";
 export {
   runSqlAgent,
+  adaptCachedSql,
   extractSql,
   type SqlAgentDeps,
   type SqlAgentResult,
   type SqlAgentSuccess,
+  type AdaptCachedSqlDeps,
+  type AdaptCachedSqlResult,
 } from "./sqlAgent.js";
 export { stripCodeFence, extractJsonObject } from "./parse.js";
 export {

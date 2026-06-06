@@ -17,6 +17,8 @@
     "test:planner-cache": "tsx scripts/plannerCacheTest.ts",
     "test:orchestrator": "tsx scripts/orchestratorTest.ts",
     "test:comparison": "tsx scripts/comparisonTest.ts",
+    "test:cache-reuse": "tsx scripts/cacheReuseTest.ts",
+    "seed:cache": "tsx scripts/seedCache.ts",
     "compare": "tsx scripts/compare.ts"
   },
   "dependencies": {

@@ -15,6 +15,7 @@ import { renderVerifier } from "../verifiers/index.js";
 import { stripCodeFence } from "../agents/index.js";
 import { buildContext, type ContextProvider, type PlannerContext } from "../context/index.js";
 import { buildDashboardHtml } from "../web/dashboardHost.js";
+import { DASHBOARD_DESIGN_BRIEF } from "../web/designBrief.js";
 import { MODELS } from "../../config/models.js";
 
 // Capped loop (standing constraint): bound the tool/turn iterations.
@@ -23,8 +24,10 @@ const MAX_TOOL_ROWS = 200;
 
 const SYSTEM_PROMPT = `You are a senior data analyst. Answer the user's question end to end using ONLY the provided database.
 - Use the execute_sql tool to run read-only SQL queries and inspect the REAL results. Query as many times as you need.
-- Then produce ONE self-contained React function component (using the "recharts" library) that renders a dashboard answering the question. Embed the actual queried data directly in the component.
-- When you are finished, reply with ONLY the React component code — no prose, no markdown fences, and no further tool calls.`;
+- Then produce ONE self-contained React function component (using the "recharts" library) that renders a dashboard answering the question. Embed the actual queried data directly in the component (no required props).
+- When you are finished, reply with ONLY the React component code — no prose, no markdown fences, and no further tool calls.
+
+${DASHBOARD_DESIGN_BRIEF}`;
 
 const TOOLS: ChatCompletionTool[] = [
   {
@@ -81,6 +84,9 @@ export async function runBaselineLane(
   ];
 
   const toolCalls: BaselineToolCall[] = [];
+  // Keep the actual rows (not just counts) so the host has embedded data for its
+  // guaranteed-render fallback if the model's own component fails to render.
+  const collected: { query: string; rows: unknown[] }[] = [];
   let code = "";
   let renderOk = false;
   let iterations = 0;
@@ -105,6 +111,7 @@ export async function runBaselineLane(
         try {
           const r = await runReadOnlyQuery(query, db);
           toolCalls.push({ query, ok: true, rowCount: r.rowCount });
+          collected.push({ query, rows: r.rows.slice(0, MAX_TOOL_ROWS) });
           content = JSON.stringify({ rowCount: r.rowCount, rows: r.rows.slice(0, MAX_TOOL_ROWS) });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
@@ -131,7 +138,14 @@ export async function runBaselineLane(
     });
   }
 
-  const html = buildDashboardHtml(code, null, `Baseline — ${question}`);
+  // Embedded data for the host fallback: one card per non-empty query result.
+  const fallbackView = {
+    title: question,
+    charts: collected
+      .filter((c) => Array.isArray(c.rows) && c.rows.length > 0)
+      .map((c, i) => ({ id: `b${i}`, question: c.query, plan: { type: "bar" }, rows: c.rows })),
+  };
+  const html = buildDashboardHtml(code, fallbackView, `Baseline — ${question}`);
   return {
     ok: renderOk && code.length > 0,
     code,

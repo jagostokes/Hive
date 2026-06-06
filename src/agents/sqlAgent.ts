@@ -5,6 +5,7 @@ import type { Pool } from "pg";
 import { runAgent, type AgentResult, type AttemptFeedback } from "./runner.js";
 import { sqlVerifier } from "../verifiers/index.js";
 import { runReadOnlyQuery } from "../db/index.js";
+import { callModel } from "../models/index.js";
 import { escalationFor } from "../../config/models.js";
 import type { ContextProvider, ResultRow, SqlContext } from "../context/index.js";
 
@@ -108,6 +109,70 @@ function formatGlossary(glossary: SqlContext["glossary"]): string {
   return glossary
     .map((g) => `- ${g.term}: ${g.sqlExpression} -- ${g.definition}`)
     .join("\n");
+}
+
+const ADAPT_SYSTEM_PROMPT =
+  "You adapt an existing read-only SQL query to a new but similar question. " +
+  "Reuse the original query's structure and only change what is necessary " +
+  "(filters, selected columns, grouping, ordering, limits). Return SQL only.";
+
+export interface AdaptCachedSqlDeps {
+  db: Pool;
+  /** Reject results larger than this (passed to sqlVerifier). */
+  maxRows?: number;
+}
+
+export interface AdaptCachedSqlResult {
+  ok: boolean;
+  sql?: string;
+  rows?: ResultRow[];
+  reason?: string;
+}
+
+/**
+ * SQL-skeleton reuse: adapt a near-matching cached query to a new sub-question
+ * with a SINGLE cheap model call (role: sqlGen) instead of the full generate →
+ * retry → escalate loop. The adapted SQL is still verified read-only; on any
+ * failure the caller falls back to full generation.
+ */
+export async function adaptCachedSql(
+  newQuestion: string,
+  cachedQuestion: string,
+  cachedSql: string,
+  deps: AdaptCachedSqlDeps,
+): Promise<AdaptCachedSqlResult> {
+  const userMessage = [
+    `Original question: ${cachedQuestion}`,
+    "Original SQL:",
+    cachedSql.trim(),
+    "",
+    `New question: ${newQuestion}`,
+    "",
+    "Return ONLY the adapted read-only SQL query. No prose, no code fences.",
+  ].join("\n");
+
+  let raw: string;
+  try {
+    const res = await callModel({
+      role: "sqlGen",
+      lane: "brain",
+      temperature: 0,
+      messages: [
+        { role: "system", content: ADAPT_SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
+      ],
+    });
+    raw = res.text;
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+  }
+
+  const sql = extractSql(raw);
+  const gate = await sqlVerifier(sql, deps.db, deps.maxRows !== undefined ? { maxRows: deps.maxRows } : {});
+  if (!gate.ok) return { ok: false, ...(gate.reason ? { reason: gate.reason } : {}) };
+
+  const { rows } = await runReadOnlyQuery(sql, deps.db);
+  return { ok: true, sql, rows };
 }
 
 // Cheap models often wrap SQL in ``` fences or prefix "sql". Strip that and take
