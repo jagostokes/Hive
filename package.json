@@ -12,7 +12,8 @@
     "demo:context": "tsx scripts/contextDemo.ts",
     "smoke:model": "tsx scripts/modelSmoke.ts",
     "test:verifiers": "tsx scripts/verifiersTest.ts",
-    "test:sql-agent": "tsx scripts/sqlAgentTest.ts"
+    "test:sql-agent": "tsx scripts/sqlAgentTest.ts",
+    "test:agents": "tsx scripts/agentsTest.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
