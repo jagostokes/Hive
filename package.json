@@ -1,0 +1,23 @@
+{
+  "name": "hive",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Brain-pattern data-question system: decompose into verified sub-agents on cheap models, escalate on verified failure, compared against a single strong-model baseline.",
+  "scripts": {
+    "dev": "echo \"[hive] dev placeholder — orchestrator not implemented yet\"",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "openai": "^4.67.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
