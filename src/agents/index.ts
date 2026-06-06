@@ -44,3 +44,12 @@ export {
   type CodeEditAgentResult,
   type CodeEditAgentSuccess,
 } from "./codeEditAgent.js";
+export {
+  runPlanner,
+  buildPlan,
+  computeParallelGroups,
+  type Plan,
+  type PlanNode,
+  type PlannerAgentDeps,
+  type PlannerAgentResult,
+} from "./plannerAgent.js";

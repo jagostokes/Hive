@@ -146,6 +146,38 @@ export async function callModel(args: CallModelArgs): Promise<CallResult> {
   };
 }
 
+export interface EmbedResult {
+  embedding: number[];
+  usage: CallUsage;
+}
+
+/**
+ * Embed text through the same OpenRouter client and account it in the ledger.
+ * Embeddings have prompt tokens only (no completion), so cost = inputPerMillion.
+ * Defaults to the `embedding` role and lane:"brain".
+ */
+export async function embed(
+  text: string,
+  opts: { role?: ModelRole; lane?: Lane } = {},
+): Promise<EmbedResult> {
+  const role = opts.role ?? "embedding";
+  const lane = opts.lane ?? "brain";
+  const model = MODELS[role].slug;
+
+  const response = await getClient().embeddings.create({ model, input: text });
+
+  const promptTokens = response.usage?.prompt_tokens ?? 0;
+  const completionTokens = 0;
+  const costUsd = computeCostUsd(role, promptTokens, completionTokens);
+
+  ledger.push({ role, model, lane, promptTokens, completionTokens, costUsd });
+
+  return {
+    embedding: response.data[0]?.embedding ?? [],
+    usage: { promptTokens, completionTokens },
+  };
+}
+
 /** All ledger entries for this run, in call order. Returns a copy. */
 export function getLedger(): LedgerEntry[] {
   return ledger.slice();

@@ -52,6 +52,24 @@ export const LOOP_CAPS = {
   maxEscalationAttempts: 1,
 } as const;
 
+// Where each cheap role escalates on verified failure. Deliberately a mid-tier,
+// still-cheap model — NOT the `baseline` flagship — so a brain-lane escalation
+// stays inexpensive and never conflates the brain lane with the baseline lane it
+// is measured against. Anything unmapped falls back to `baseline` as a last
+// resort. Single source of truth for escalation, same as model choices.
+export const ESCALATION: Partial<Record<ModelRole, ModelRole>> = {
+  sqlGen: "sqlEscalation",
+  insight: "planner",
+  dashboardPlan: "planner",
+  codeGen: "sqlEscalation",
+  codeEdit: "sqlEscalation",
+};
+
+/** The escalation role for a cheap role; `baseline` if none is configured. */
+export function escalationFor(role: ModelRole): ModelRole {
+  return ESCALATION[role] ?? "baseline";
+}
+
 /** Convenience accessor: the slug for a role. */
 export function modelSlug(role: ModelRole): string {
   return MODELS[role].slug;

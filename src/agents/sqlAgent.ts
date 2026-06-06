@@ -5,6 +5,7 @@ import type { Pool } from "pg";
 import { runAgent, type AgentResult, type AttemptFeedback } from "./runner.js";
 import { sqlVerifier } from "../verifiers/index.js";
 import { runReadOnlyQuery } from "../db/index.js";
+import { escalationFor } from "../../config/models.js";
 import type { ContextProvider, ResultRow, SqlContext } from "../context/index.js";
 
 // This agent's single role. Sent as the system message — separate from the
@@ -43,7 +44,7 @@ export async function runSqlAgent(
     name: "sql",
     systemPrompt: SYSTEM_PROMPT,
     cheapRole: "sqlGen",
-    escalationRole: "sqlEscalation",
+    escalationRole: escalationFor("sqlGen"),
     lane: "brain",
     temperature: 0,
     buildUserMessage: (feedback) => buildUserMessage(scoped, subQuestion, feedback),

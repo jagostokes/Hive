@@ -4,6 +4,7 @@
 // only the column dictionary + the single metric in play (forInsight).
 import { runAgent, type AgentResult, type AttemptFeedback } from "./runner.js";
 import { insightVerifier } from "../verifiers/index.js";
+import { escalationFor } from "../../config/models.js";
 import type {
   ContextProvider,
   ResultRow,
@@ -33,9 +34,7 @@ export async function runInsightAgent(
     name: "insight",
     systemPrompt: SYSTEM_PROMPT,
     cheapRole: "insight",
-    // No dedicated insight-escalation model in the catalog; the strong model is
-    // the escalation tier (still lane:"brain").
-    escalationRole: "baseline",
+    escalationRole: escalationFor("insight"),
     lane: "brain",
     temperature: 0,
     buildUserMessage: (feedback) => buildUserMessage(scoped, resultRows, feedback),

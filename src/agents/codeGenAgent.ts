@@ -4,6 +4,7 @@
 import { runAgent, type AgentResult, type AttemptFeedback } from "./runner.js";
 import { renderVerifier } from "../verifiers/index.js";
 import { stripCodeFence } from "./parse.js";
+import { escalationFor } from "../../config/models.js";
 import type { ContextProvider, ResultRow, CodeGenContext } from "../context/index.js";
 
 const SYSTEM_PROMPT =
@@ -30,7 +31,7 @@ export async function runCodeGenAgent(
     name: "codeGen",
     systemPrompt: SYSTEM_PROMPT,
     cheapRole: "codeGen",
-    escalationRole: "baseline",
+    escalationRole: escalationFor("codeGen"),
     lane: "brain",
     temperature: 0,
     maxTokens: 1500,
