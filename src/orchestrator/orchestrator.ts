@@ -131,6 +131,13 @@ export interface BrainOptions {
   freshLedger?: boolean;
 }
 
+// A trivial single-node plan: answer the whole question as one "main query".
+// Used when the planner fails, or as the last-resort fallback when no decomposed
+// sub-question produced a usable chart.
+function mainQueryPlan(question: string): Plan {
+  return { subQuestions: [{ id: "main", question, dependsOn: [] }], groups: [["main"]] };
+}
+
 // At or above this cosine similarity a cache hit is treated as the SAME question
 // and the cached SQL is reused verbatim (no model call). Below it (down to the
 // lookup threshold) the cached SQL is adapted with one cheap call instead.
@@ -216,22 +223,11 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
   const insightRes = await runInsightAgent(rows, { context: deps.context });
   const insight = insightRes.ok ? insightRes.data.text : undefined;
 
-  // Dashboard-plan step (required for this sub-question's chart).
+  // Dashboard-plan step. We already have verified rows, so a failed chart spec
+  // must NOT sink the lane — fall back to a minimal plan (just a title) and let
+  // the renderer auto-detect x/y/type (and KPI for a single value) from the rows.
   const planRes = await runDashboardPlanAgent(rows, { context: deps.context });
-  if (!planRes.ok) {
-    return {
-      ...base,
-      ok: false,
-      failedStage: "dashboard",
-      failure: planRes.reason,
-      sql,
-      rows,
-      sqlSource,
-      ...(cacheSimilarity !== undefined ? { cacheSimilarity } : {}),
-      ...(insight ? { insight } : {}),
-      finishedAt: Date.now(),
-    };
-  }
+  const plan: unknown = planRes.ok ? planRes.data.plan : { title: node.question };
 
   return {
     ...base,
@@ -241,7 +237,7 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
     sqlSource,
     ...(cacheSimilarity !== undefined ? { cacheSimilarity } : {}),
     ...(insight ? { insight } : {}),
-    plan: planRes.data.plan,
+    plan,
     finishedAt: Date.now(),
   };
 }
@@ -270,12 +266,11 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
     ...extra,
   });
 
-  // 1. Plan the question into a DAG of sub-questions.
+  // 1. Plan the question into a DAG of sub-questions. If planning fails, fall
+  //    back to treating the WHOLE question as a single "main query" lane — a
+  //    question that can't be decomposed should still be answered directly.
   const planned = await runPlanner(question, { context });
-  if (!planned.ok) {
-    return finish({ reason: `planner failed: ${planned.reason}` });
-  }
-  const plan = planned.data;
+  const plan: Plan = planned.ok ? planned.data : mainQueryPlan(question);
   const byId = new Map(plan.subQuestions.map((n) => [n.id, n]));
 
   // 2. Run each parallel group concurrently; groups run in DAG order.
@@ -290,15 +285,28 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
   }
 
   // 4. Coalesce successful sub-question plans into ONE dashboard spec.
-  const charts: DashboardChart[] = lanes
-    .filter((l) => l.ok)
-    .map((l) => ({
-      id: l.id,
-      question: l.question,
-      plan: l.plan,
-      data: l.rows ?? [],
-      ...(l.insight ? { insight: l.insight } : {}),
-    }));
+  const toChart = (l: LaneResult): DashboardChart => ({
+    id: l.id,
+    question: l.question,
+    plan: l.plan,
+    data: l.rows ?? [],
+    ...(l.insight ? { insight: l.insight } : {}),
+  });
+  const charts: DashboardChart[] = lanes.filter((l) => l.ok).map(toChart);
+
+  // 4b. Robustness fallback: if NO sub-question produced a usable chart, run the
+  //     ORIGINAL question directly as a single main query (unless we already
+  //     tried exactly that). Piecewise decomposition can fail while the question's
+  //     primary intent is answerable as one query.
+  if (charts.length === 0) {
+    const alreadyTriedWhole = lanes.some((l) => l.question.trim() === question.trim());
+    if (!alreadyTriedWhole) {
+      const mainLane = await runLane({ id: "main", question, dependsOn: [] }, laneDeps);
+      lanes.push(mainLane);
+      if (mainLane.ok) charts.push(toChart(mainLane));
+    }
+  }
+
   const spec: DashboardSpec = { title: question, charts };
   const cacheHits = lanes.filter(
     (l) => l.ok && (l.sqlSource === "cache" || l.sqlSource === "cache-adapted"),
