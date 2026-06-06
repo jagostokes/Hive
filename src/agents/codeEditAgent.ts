@@ -5,6 +5,7 @@
 import { runAgent, type AgentResult, type AttemptFeedback } from "./runner.js";
 import { renderVerifier } from "../verifiers/index.js";
 import { stripCodeFence } from "./parse.js";
+import { escalationFor } from "../../config/models.js";
 import type { ContextProvider, CodeEditContext } from "../context/index.js";
 
 const SYSTEM_PROMPT =
@@ -31,7 +32,7 @@ export async function runCodeEditAgent(
     name: "codeEdit",
     systemPrompt: SYSTEM_PROMPT,
     cheapRole: "codeEdit",
-    escalationRole: "baseline",
+    escalationRole: escalationFor("codeEdit"),
     lane: "brain",
     temperature: 0,
     maxTokens: 1500,

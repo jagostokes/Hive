@@ -4,6 +4,7 @@
 import { runAgent, type AgentResult, type AttemptFeedback } from "./runner.js";
 import { planVerifier } from "../verifiers/index.js";
 import { extractJsonObject } from "./parse.js";
+import { escalationFor } from "../../config/models.js";
 import type {
   ContextProvider,
   ResultRow,
@@ -35,7 +36,7 @@ export async function runDashboardPlanAgent(
     name: "dashboardPlan",
     systemPrompt: SYSTEM_PROMPT,
     cheapRole: "dashboardPlan",
-    escalationRole: "baseline",
+    escalationRole: escalationFor("dashboardPlan"),
     lane: "brain",
     temperature: 0,
     buildUserMessage: (feedback) => buildUserMessage(scoped, feedback),
