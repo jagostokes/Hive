@@ -35,6 +35,9 @@ export async function runCodeEditAgent(
     lane: "brain",
     temperature: 0,
     maxTokens: 1500,
+    // Relace fast-apply has a rigid contract: a single user message with only its
+    // <code>/<update> tags, no system role. We fold the role into that message.
+    promptStyle: "user-only",
     buildUserMessage: (feedback) => buildUserMessage(scoped, feedback),
     parse: (raw) => stripCodeFence(raw),
     verify: (code) => {
@@ -44,26 +47,24 @@ export async function runCodeEditAgent(
   });
 }
 
+// The Relace fast-apply model expects exactly one user message shaped as
+// <code>{current file}</code><update>{the edit to apply}</update> and returns the
+// merged file. We put the broken component in <code> and the fix instruction
+// (driven by the render error) in <update>. The strong escalation model reads the
+// same tagged message fine. SYSTEM_PROMPT's role is folded into <update>.
 function buildUserMessage(
   scoped: CodeEditContext,
   feedback: AttemptFeedback | null,
 ): string {
-  const parts: string[] = [
-    "Broken component:",
-    scoped.component,
-    "",
-    `Render error: ${scoped.error}`,
-  ];
+  // On a retry, operate on the last (still-broken) output rather than the
+  // original, and surface the latest build error.
+  const code = feedback?.previousOutput.trim() || scoped.component;
+  const renderError = feedback?.reason ?? scoped.error;
 
-  if (feedback) {
-    parts.push(
-      "",
-      "Your previous fix still failed to build/render. Try again.",
-      `Previous code:\n${feedback.previousOutput.trim()}`,
-      `Build error: ${feedback.reason}`,
-    );
-  }
+  const update =
+    `${SYSTEM_PROMPT} The component fails to build/render with this error: ` +
+    `${renderError}. Rewrite it so it compiles and renders, returning the ` +
+    `complete corrected component (code only).`;
 
-  parts.push("", "Return the fixed component as code only. No prose, no fences.");
-  return parts.join("\n");
+  return `<code>\n${code}\n</code>\n<update>\n${update}\n</update>`;
 }

@@ -44,6 +44,16 @@ export interface AgentSpec<TOutput, TData> {
   lane?: Lane;
   temperature?: number;
   maxTokens?: number;
+  /**
+   * How to deliver the prompt. Default "system+user" keeps this agent's role in a
+   * dedicated system message (the standing convention). "single-user" merges the
+   * system prompt into one user message for models that reject multi-turn input.
+   * "user-only" sends just the user message (systemPrompt is NOT sent) for models
+   * with a rigid single-message input contract (e.g. the Relace fast-apply model,
+   * which wants only its <code>/<update> tags) — such agents fold their role into
+   * the user message themselves.
+   */
+  promptStyle?: "system+user" | "single-user" | "user-only";
 }
 
 export interface AttemptFeedback {
@@ -103,10 +113,7 @@ export async function runAgent<TOutput, TData>(
   for (const { phase, role, tries } of phases) {
     for (let t = 0; t < tries; t++) {
       const userMessage = spec.buildUserMessage(feedback);
-      const messages: ChatCompletionMessageParam[] = [
-        { role: "system", content: spec.systemPrompt },
-        { role: "user", content: userMessage },
-      ];
+      const messages = buildMessages(spec, userMessage);
 
       const { text } = await callModel({
         role,
@@ -156,4 +163,21 @@ export async function runAgent<TOutput, TData>(
     modelsUsed,
     attempts,
   };
+}
+
+function buildMessages<TOutput, TData>(
+  spec: AgentSpec<TOutput, TData>,
+  userMessage: string,
+): ChatCompletionMessageParam[] {
+  switch (spec.promptStyle) {
+    case "user-only":
+      return [{ role: "user", content: userMessage }];
+    case "single-user":
+      return [{ role: "user", content: `${spec.systemPrompt}\n\n${userMessage}` }];
+    default:
+      return [
+        { role: "system", content: spec.systemPrompt },
+        { role: "user", content: userMessage },
+      ];
+  }
 }
