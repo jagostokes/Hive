@@ -13,7 +13,8 @@
     "smoke:model": "tsx scripts/modelSmoke.ts",
     "test:verifiers": "tsx scripts/verifiersTest.ts",
     "test:sql-agent": "tsx scripts/sqlAgentTest.ts",
-    "test:agents": "tsx scripts/agentsTest.ts"
+    "test:agents": "tsx scripts/agentsTest.ts",
+    "test:planner-cache": "tsx scripts/plannerCacheTest.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

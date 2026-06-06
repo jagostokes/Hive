@@ -29,8 +29,12 @@ export interface AgentSpec<TOutput, TData> {
   systemPrompt: string;
   /** Cheap model role tried first (and once more on failure). */
   cheapRole: ModelRole;
-  /** Stronger model escalated to after cheap attempts are exhausted. */
-  escalationRole: ModelRole;
+  /**
+   * Stronger model escalated to after cheap attempts are exhausted. Omit for
+   * agents that retry on the cheap model then fail gracefully without escalating
+   * (e.g. the planner).
+   */
+  escalationRole?: ModelRole;
   /**
    * Build the USER message. `feedback` is null on the first try and the previous
    * failure (reason + raw output) on a retry, so the agent can self-correct.
@@ -103,10 +107,18 @@ export async function runAgent<TOutput, TData>(
   const modelsUsed: string[] = [];
 
   // Each phase = (role, how many tries). Caps come from config, never inline.
+  // The escalation phase is only added when the agent configures an escalation
+  // role; otherwise it retries on the cheap model then stops.
   const phases: Array<{ phase: "cheap" | "escalation"; role: ModelRole; tries: number }> = [
     { phase: "cheap", role: spec.cheapRole, tries: LOOP_CAPS.maxCheapAttempts },
-    { phase: "escalation", role: spec.escalationRole, tries: LOOP_CAPS.maxEscalationAttempts },
   ];
+  if (spec.escalationRole) {
+    phases.push({
+      phase: "escalation",
+      role: spec.escalationRole,
+      tries: LOOP_CAPS.maxEscalationAttempts,
+    });
+  }
 
   let feedback: AttemptFeedback | null = null;
 
@@ -123,8 +135,17 @@ export async function runAgent<TOutput, TData>(
         ...(spec.maxTokens !== undefined ? { maxTokens: spec.maxTokens } : {}),
       });
 
-      const output = spec.parse(text);
-      const outcome = await spec.verify(output);
+      // Parsing or verification throwing (e.g. malformed JSON) is a RECOVERABLE
+      // verified failure: record it, feed the reason back, and try again rather
+      // than crashing the run.
+      let output: TOutput | undefined;
+      let outcome: VerifyOutcome<TData>;
+      try {
+        output = spec.parse(text);
+        outcome = await spec.verify(output);
+      } catch (err) {
+        outcome = { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      }
 
       const model = MODELS[role].slug;
       modelsUsed.push(model);
@@ -141,7 +162,7 @@ export async function runAgent<TOutput, TData>(
       if (outcome.ok) {
         return {
           ok: true,
-          output,
+          output: output as TOutput,
           data: outcome.data as TData,
           modelsUsed,
           attempts,
