@@ -11,7 +11,8 @@
     "db:setup": "npx -y @insforge/cli db import src/db/schema.sql",
     "demo:context": "tsx scripts/contextDemo.ts",
     "smoke:model": "tsx scripts/modelSmoke.ts",
-    "test:verifiers": "tsx scripts/verifiersTest.ts"
+    "test:verifiers": "tsx scripts/verifiersTest.ts",
+    "test:sql-agent": "tsx scripts/sqlAgentTest.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
