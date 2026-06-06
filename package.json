@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Brain-pattern data-question system: decompose into verified sub-agents on cheap models, escalate on verified failure, compared against a single strong-model baseline.",
   "scripts": {
-    "dev": "echo \"[hive] dev placeholder — orchestrator not implemented yet\"",
+    "dev": "tsx scripts/dev.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:setup": "npx -y @insforge/cli db import src/db/schema.sql",
