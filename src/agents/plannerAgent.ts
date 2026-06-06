@@ -10,9 +10,18 @@ const SYSTEM_PROMPT =
   "You are a query planner. Decompose the user's data question into the minimal " +
   "set of sub-questions needed to answer it, using only the provided schema and " +
   "glossary. Mark dependencies: a sub-question depends on another ONLY when it " +
-  "literally needs that other sub-question's result as input. Independent " +
-  "sub-questions (e.g. separate metrics asked for in the same question) must have " +
-  "no dependencies so they can run in parallel. " +
+  "literally needs that other sub-question's result as input. Independent metrics " +
+  "(genuinely separate asks) must have no dependencies so they can run in parallel. " +
+  "PRESERVE COMPARATIVE INTENT — this is critical and overrides the urge to split: " +
+  "if the question COMPARES or RELATES values across periods, segments, categories, " +
+  "or groups (cues: 'compare', 'A vs B', 'from X to Y', 'change/growth/difference', " +
+  "'by region', 'per status', 'over time', 'trend', 'top N by …'), that comparison " +
+  "is ONE sub-question whose single result set returns ALL compared groups TOGETHER " +
+  "(e.g. grouped by month/period/category, or both periods in one query). Do NOT " +
+  "split each side of a comparison into separate sub-questions — that destroys the " +
+  "comparison, producing disconnected single-value cards instead of one side-by-side " +
+  "chart. Example: 'compare sales in Jan 2017 vs Jan 2018' is ONE sub-question " +
+  "('total sales grouped by month for January 2017 and January 2018'), NOT two. " +
   "CRITICAL: each sub-question is answered INDEPENDENTLY with no shared context, so " +
   "every sub-question MUST be fully self-contained — restate ALL shared qualifiers " +
   "from the original question in EACH one: time windows (e.g. 'in the last 30 days'), " +
@@ -87,6 +96,10 @@ function buildUserMessage(
       '{"id":"q2","question":"...","dependsOn":["q1"]}]}',
     "Use short ids (q1, q2, ...). dependsOn lists ids that must finish first; " +
       "use [] for independent sub-questions.",
+    "Keep comparisons together: if the question compares/relates values across " +
+      "periods, segments, or categories (e.g. '2017 vs 2018', 'by region', 'over " +
+      "time'), make it ONE sub-question whose result returns all compared groups in " +
+      "a single grouped result set — never one sub-question per side.",
     "Each sub-question must be self-contained: carry over every filter from the " +
       "original question (date range, status, segment) into each sub-question text, " +
       "because each is run on its own without the others' context.",

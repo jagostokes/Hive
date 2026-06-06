@@ -182,10 +182,12 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
   //    reuse) when it's a looser paraphrase.
   // Either way the SQL is executed/verified and must return rows; otherwise we
   // fall back to full generation below.
+  const tCache = Date.now();
   const lookup = await cacheLookup(node.question, {
     pool: deps.db,
     ...(deps.cacheThreshold !== undefined ? { threshold: deps.cacheThreshold } : {}),
   });
+  brainLog(`lane ${node.id} cache lookup ${Date.now() - tCache}ms (hit=${lookup.hit})`);
   if (lookup.hit) {
     cacheSimilarity = lookup.similarity;
     if (lookup.similarity >= EXACT_REUSE_THRESHOLD) {
@@ -213,11 +215,16 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
   }
 
   if (!sql || !rows) {
+    const tSql = Date.now();
     const sqlRes = await runSqlAgent(node.question, {
       context: deps.context,
       db: deps.db,
       ...(deps.sqlEscalation ? { escalationRole: deps.sqlEscalation } : {}),
     });
+    brainLog(
+      `lane ${node.id} SQL gen ${Date.now() - tSql}ms ` +
+        `(${sqlRes.attempts.length} attempt(s), models: ${sqlRes.modelsUsed.join(", ")})`,
+    );
     if (!sqlRes.ok) {
       brainLog(`lane ${node.id} SQL failed: ${sqlRes.reason} — "${node.question}"`);
       return { ...base, ok: false, failedStage: "sql", failure: sqlRes.reason, finishedAt: Date.now() };
@@ -234,14 +241,18 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
   }
 
   // Insight step (supplementary — a verified failure does not sink the lane).
+  const tInsight = Date.now();
   const insightRes = await runInsightAgent(rows, { context: deps.context });
   const insight = insightRes.ok ? insightRes.data.text : undefined;
+  brainLog(`lane ${node.id} insight ${Date.now() - tInsight}ms`);
 
   // Dashboard-plan step. We already have verified rows, so a failed chart spec
   // must NOT sink the lane — fall back to a minimal plan (just a title) and let
   // the renderer auto-detect x/y/type (and KPI for a single value) from the rows.
+  const tPlan = Date.now();
   const planRes = await runDashboardPlanAgent(rows, { context: deps.context });
   const plan: unknown = planRes.ok ? planRes.data.plan : { title: node.question };
+  brainLog(`lane ${node.id} dashboard-plan ${Date.now() - tPlan}ms — lane total ${Date.now() - startedAt}ms`);
 
   return {
     ...base,
@@ -283,18 +294,24 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
   // 1. Plan the question into a DAG of sub-questions. If planning fails, fall
   //    back to treating the WHOLE question as a single "main query" lane — a
   //    question that can't be decomposed should still be answered directly.
+  const tPlan = Date.now();
   const planned = await runPlanner(question, { context });
   const plan: Plan = planned.ok ? planned.data : mainQueryPlan(question);
   const byId = new Map(plan.subQuestions.map((n) => [n.id, n]));
+  brainLog(
+    `planner ${Date.now() - tPlan}ms — ${plan.subQuestions.length} sub-question(s) in ${plan.groups.length} group(s)`,
+  );
 
   // 2. Run each parallel group concurrently; groups run in DAG order.
   // Note: Dependencies ensure group B starts after group A finishes, but
   // lanes in group B do NOT receive data from lanes in group A. Each lane
   // generates SQL independently from the schema. See README for rationale.
   const lanes: LaneResult[] = [];
-  for (const group of plan.groups) {
+  for (const [i, group] of plan.groups.entries()) {
     const nodes = group.map((id) => byId.get(id)).filter((n): n is PlanNode => Boolean(n));
+    const tGroup = Date.now();
     const groupResults = await Promise.all(nodes.map((n) => runLane(n, laneDeps)));
+    brainLog(`group ${i + 1}/${plan.groups.length} (${nodes.length} lane(s)) ${Date.now() - tGroup}ms`);
     lanes.push(...groupResults);
   }
 
@@ -346,7 +363,9 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
   //    `rows`) is BOTH the codeGen context and the runtime `data` prop, so the
   //    component the model writes binds to exactly the object it is given.
   const view = toDashboardView(spec);
+  const tCode = Date.now();
   const codeGen = await runCodeGenAgent(view, [], { context });
+  brainLog(`codeGen ${Date.now() - tCode}ms (${codeGen.ok ? "ok" : "needs codeEdit"})`);
   let code: string;
   let renderOk: boolean;
   let codeEditUsed = false;
