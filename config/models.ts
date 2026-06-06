@@ -38,9 +38,12 @@ export const MODELS: Record<ModelRole, ModelSpec> = {
   sqlEscalation: { slug: "qwen/qwen3-coder-plus", inputPerMillion: 0.65, outputPerMillion: 3.3 },
   insight: { slug: "deepseek/deepseek-v4-flash", inputPerMillion: 0.1, outputPerMillion: 0.2 },
   dashboardPlan: { slug: "google/gemini-2.5-flash-lite", inputPerMillion: 0.1, outputPerMillion: 0.4 },
-  codeGen: { slug: "qwen/qwen3-coder-flash", inputPerMillion: 0.2, outputPerMillion: 0.97 },
+  // Dashboard code quality matters a lot for the demo, so codeGen runs on the
+  // stronger coder (same slug as sqlEscalation). Still ~8x cheaper on output than
+  // the baseline flagship, so the brain lane keeps its large cost advantage.
+  codeGen: { slug: "qwen/qwen3-coder-plus", inputPerMillion: 0.65, outputPerMillion: 3.3 },
   codeEdit: { slug: "relace/relace-apply-3", inputPerMillion: 0.85, outputPerMillion: 1.3 },
-  baseline: { slug: "anthropic/claude-opus-4.8", inputPerMillion: 5.0, outputPerMillion: 25.0 },
+  baseline: { slug: "openai/gpt-5.5-pro", inputPerMillion: 30.0, outputPerMillion: 180.0 },
 };
 
 // Capped loops apply to every agent: a few cheap attempts, then one escalation,
@@ -61,7 +64,9 @@ export const ESCALATION: Partial<Record<ModelRole, ModelRole>> = {
   sqlGen: "sqlEscalation",
   insight: "planner",
   dashboardPlan: "planner",
-  codeGen: "sqlEscalation",
+  // codeGen already runs on the strong coder, so its only step up is the
+  // flagship — a rare last resort if even that can't produce renderable HTML.
+  codeGen: "baseline",
   codeEdit: "sqlEscalation",
 };
 

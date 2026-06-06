@@ -58,7 +58,14 @@ async function seed(): Promise<void> {
 async function renderable(url: string): Promise<{ status: number; ok: boolean; bytes: number }> {
   const r = await fetch(url);
   const html = await r.text();
-  const ok = r.status === 200 && html.includes("id=\"root\"") && html.includes("ReactDOM.createRoot");
+  // The Chart.js shell: a mount point, the Chart.js CDN, the embedded data
+  // global, and at least one visualization (canvas/svg/table or a Chart.js call).
+  const ok =
+    r.status === 200 &&
+    html.includes('id="hive-root"') &&
+    html.includes("chart.js") &&
+    html.includes("window.DASHBOARD_DATA") &&
+    /<canvas\b|<svg\b|new\s+Chart\s*\(|<table\b/i.test(html);
   return { status: r.status, ok, bytes: html.length };
 }
 

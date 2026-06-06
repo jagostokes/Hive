@@ -1,17 +1,25 @@
-// agents/codeGenAgent: writes one self-contained React component for a chart spec
-// + data. Follows the runner template. Scoped context = forCodeGen (the plan +
-// the data only). No schema, no glossary.
+// agents/codeGenAgent: writes one self-contained HTML dashboard fragment (markup
+// + an inline <script> drawing charts with Chart.js) for a plan + data. Follows
+// the runner template. Scoped context = forCodeGen (the plan + the data only).
+// No schema, no glossary.
 import { runAgent, type AgentResult, type AttemptFeedback } from "./runner.js";
 import { renderVerifier } from "../verifiers/index.js";
 import { stripCodeFence } from "./parse.js";
 import { escalationFor } from "../../config/models.js";
-import { DASHBOARD_DESIGN_BRIEF, DASHBOARD_DATA_CONTRACT } from "../web/designBrief.js";
+import {
+  DASHBOARD_DESIGN_BRIEF,
+  DASHBOARD_DATA_CONTRACT,
+  DASHBOARD_EXAMPLE,
+} from "../web/designBrief.js";
 import type { ContextProvider, ResultRow, CodeGenContext } from "../context/index.js";
 
 const SYSTEM_PROMPT = [
-  "Given a dashboard spec and its data, output ONE self-contained React component. Code only.",
+  "Given a dashboard spec and its data, output ONE self-contained HTML dashboard fragment. HTML only.",
   "",
   DASHBOARD_DESIGN_BRIEF,
+  "",
+  "REFERENCE EXAMPLE — a known-good, correct dashboard fragment. Start from this exact structure and adapt it to the data (you may keep it almost verbatim; it already reads window.DASHBOARD_DATA). Do NOT regress on the canvas height wrapper or maintainAspectRatio:false.",
+  DASHBOARD_EXAMPLE,
 ].join("\n");
 
 export interface CodeGenAgentDeps {
@@ -38,7 +46,7 @@ export async function runCodeGenAgent(
     escalationRole: escalationFor("codeGen"),
     lane: "brain",
     temperature: 0,
-    maxTokens: 3500,
+    maxTokens: 4000,
     buildUserMessage: (feedback) => buildUserMessage(scoped, feedback),
     parse: (raw) => stripCodeFence(raw),
     verify: (code) => {
@@ -55,7 +63,7 @@ function buildUserMessage(
   const parts: string[] = [
     DASHBOARD_DATA_CONTRACT,
     "",
-    "DASHBOARD (this is exactly the `data` prop):",
+    "DASHBOARD DATA (also exposed to your script as the global DASHBOARD_DATA):",
     JSON.stringify(scoped.plan),
   ];
 
@@ -68,15 +76,15 @@ function buildUserMessage(
   if (feedback) {
     parts.push(
       "",
-      "Your previous component failed to build/render. Fix it.",
-      `Previous code:\n${feedback.previousOutput.trim()}`,
-      `Build error: ${feedback.reason}`,
+      "Your previous dashboard failed verification. Fix it.",
+      `Previous HTML:\n${feedback.previousOutput.trim()}`,
+      `Error: ${feedback.reason}`,
     );
   }
 
   parts.push(
     "",
-    "Return ONE self-contained React component as code only. No prose, no fences.",
+    "Return ONE self-contained HTML fragment as HTML only. No prose, no code fences, no <html>/<head>/<body>/<script src>.",
   );
   return parts.join("\n");
 }

@@ -1,10 +1,10 @@
-// web: serves the localhost dashboard showing the answer plus (later) the
-// brain-pattern vs. baseline token/cost comparison. No build step — components
-// render in-browser via Babel standalone + CDN React/Recharts.
+// web: serves the localhost dashboard showing the answer plus the brain-pattern
+// vs. baseline token/cost comparison. No build step — both lanes emit a
+// self-contained HTML fragment rendered in a Chart.js shell with a data fallback.
 export {
   buildDashboardHtml,
   serveDashboard,
-  prepareComponent,
+  sanitizeFragment,
   type DashboardServer,
 } from "./dashboardHost.js";
 export {

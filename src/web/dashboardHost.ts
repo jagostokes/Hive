@@ -1,7 +1,10 @@
-// web: serve a generated React dashboard component on localhost with no build
-// step. The component is transpiled in the browser (Babel standalone) against
-// React/ReactDOM/Recharts UMD globals from a CDN, so any self-contained component
-// the codeGen agent produces can render without bundling.
+// web: serve a generated HTML dashboard on localhost. Both lanes now emit a
+// self-contained HTML fragment (markup + an inline <script> that draws charts
+// with Chart.js). The host wraps that fragment in a fixed shell that loads
+// Chart.js from a CDN, paints the dark theme, exposes the data as the global
+// `DASHBOARD_DATA`, and installs a guaranteed-render fallback: if the model's
+// fragment throws or renders nothing, a generic renderer draws the embedded data
+// so both lanes always display their findings.
 import http from "node:http";
 
 export interface DashboardServer {
@@ -11,38 +14,46 @@ export interface DashboardServer {
   close: () => Promise<void>;
 }
 
-// Turn the generated module into something a <script type="text/babel"> block can
-// evaluate: drop imports (deps come from CDN globals) and the `export` keywords,
-// and figure out which component to mount.
-export function prepareComponent(code: string): { body: string; mountName: string } {
-  let body = code;
-  body = body.replace(/^\s*import[^\n]*\n/gm, "");
+/**
+ * Normalize whatever the model returned into a body fragment we can drop into the
+ * shell: strip code fences and any <!doctype>/<html>/<head>/<body> wrappers
+ * (salvaging <style> blocks) and drop external <script src> tags (the shell
+ * already provides Chart.js). A model that already returns a bare fragment passes
+ * through essentially unchanged.
+ */
+export function sanitizeFragment(modelOutput: string): string {
+  let s = (modelOutput ?? "").trim();
 
-  let mountName = "";
-  const defFn = body.match(/export\s+default\s+function\s+([A-Za-z0-9_]+)/);
-  const defNamed = body.match(/export\s+default\s+([A-Za-z0-9_]+)\s*;?/);
-  if (defFn) mountName = defFn[1];
-  else if (defNamed && !/function|class/.test(defNamed[1])) mountName = defNamed[1];
+  const fence = s.match(/```(?:html)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
 
-  // Name an anonymous default export so we can reference it.
-  body = body.replace(/export\s+default\s+function\s*\(/, "function __DefaultExport__(");
-  if (!mountName && /function __DefaultExport__\(/.test(body)) mountName = "__DefaultExport__";
+  // Salvage any <style> blocks (head or body) so styling survives unwrapping.
+  const styles = (s.match(/<style[\s\S]*?<\/style>/gi) ?? []).join("\n");
 
-  body = body.replace(/export\s+default\s+/g, "");
-  body = body.replace(/export\s+(const|function|class|let|var)\s+/g, "$1 ");
-
-  // Fallback: pick the first capitalized component-looking declaration.
-  if (!mountName) {
-    const fn = body.match(/function\s+([A-Z][A-Za-z0-9_]*)\s*\(/);
-    const cst = body.match(/const\s+([A-Z][A-Za-z0-9_]*)\s*=/);
-    mountName = fn?.[1] ?? cst?.[1] ?? "App";
+  // Prefer the <body> inner content when a full document was returned.
+  let inner: string;
+  const body = s.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (body) {
+    inner = body[1];
+  } else {
+    inner = s
+      .replace(/<!doctype[^>]*>/gi, "")
+      .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+      .replace(/<\/?html[^>]*>/gi, "");
   }
-  return { body, mountName };
+
+  inner = inner
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*\bsrc=[^>]*>\s*<\/script>/gi, "")
+    .trim();
+
+  return (styles ? `${styles}\n` : "") + inner;
 }
 
-export function buildDashboardHtml(componentCode: string, data: unknown, title = "Hive Dashboard"): string {
-  const { body, mountName } = prepareComponent(componentCode);
-  const dataJson = JSON.stringify(data ?? null);
+export function buildDashboardHtml(modelOutput: string, data: unknown, title = "Hive Dashboard"): string {
+  const fragment = sanitizeFragment(modelOutput);
+  // Escape "<" so a stray "</script>" inside the data can't close our block.
+  const dataJson = JSON.stringify(data ?? null).replace(/</g, "\\u003c");
 
   return `<!doctype html>
 <html lang="en">
@@ -50,121 +61,90 @@ export function buildDashboardHtml(componentCode: string, data: unknown, title =
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(title)}</title>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script crossorigin src="https://unpkg.com/recharts/umd/Recharts.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 0; background: #0b0e14; color: #e6e6e6; }
   header { padding: 16px 24px; border-bottom: 1px solid #232a36; font-weight: 600; }
-  #root { padding: 24px; }
+  #hive-root { padding: 24px; }
+  .hive-card { background: #11151f; border: 1px solid #232a36; border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+  .hive-card h3 { margin: 0 0 8px; font-size: 15px; color: #e6e6e6; }
+  .hive-kpi { font-size: 34px; font-weight: 700; color: #4ade80; }
+  .hive-muted { color: #8b95a5; font-size: 13px; margin-top: 4px; }
   .hive-error { color: #ff6b6b; white-space: pre-wrap; padding: 16px; }
+  canvas { max-width: 100%; }
 </style>
 </head>
 <body>
 <header>${escapeHtml(title)}</header>
-<div id="root"></div>
-<script>window.__DATA__ = ${dataJson};</script>
-<script type="text/babel" data-presets="react,typescript">
-const { useState, useEffect, useMemo, useRef, useCallback, Fragment } = React;
-const R = window.Recharts || {};
-const {
-  ResponsiveContainer, BarChart, Bar, LineChart, Line, AreaChart, Area,
-  PieChart, Pie, Cell, ScatterChart, Scatter, RadarChart, Radar,
-  XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, Legend, PolarGrid,
-  PolarAngleAxis, PolarRadiusAxis, ComposedChart
-} = R;
-
-${body}
-
-// --- Guaranteed-render safety net -------------------------------------------
-// React 18 throws render-time errors asynchronously, so a try/catch around
-// root.render() will NOT catch a broken generated component — it just leaves
-// the root empty. We wrap the model component in an error boundary and, if it
-// errors OR renders nothing, fall back to a generic renderer driven by the
-// embedded data (window.__DATA__). This makes both lanes display every time.
-const HIVE_PALETTE = ["#4ade80","#60a5fa","#f59e0b","#f472b6","#22d3ee","#a78bfa"];
-const hiveNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
-const hiveFmt = (v) => { const n = hiveNum(v); return n == null ? String(v) : n.toLocaleString(); };
-
-function HiveCard({ chart }) {
-  const rows = Array.isArray(chart && chart.rows) ? chart.rows : [];
-  const plan = (chart && chart.plan) || {};
-  const title = plan.title || (chart && chart.question) || "Result";
-  const cardStyle = { background:"#11151f", border:"1px solid #232a36", borderRadius:12, padding:"16px 18px", boxShadow:"0 1px 2px rgba(0,0,0,.4)" };
-  const titleStyle = { color:"#e6e6e6", fontSize:15, fontWeight:600, margin:"0 0 8px" };
-  const captionStyle = { color:"#8b95a5", fontSize:12, marginTop:8 };
-  if (!rows.length) {
-    return React.createElement("div",{style:cardStyle},
-      React.createElement("h3",{style:titleStyle}, title),
-      React.createElement("div",{style:{color:"#8b95a5"}}, "No rows."));
+<script>window.DASHBOARD_DATA = ${dataJson};</script>
+<div id="hive-root">
+${fragment}
+</div>
+<script>
+(function () {
+  var PALETTE = ["#4ade80","#60a5fa","#f59e0b","#f472b6","#22d3ee","#a78bfa"];
+  function num(v) { var n = Number(v); return isFinite(n) ? n : null; }
+  function fallback() {
+    var data = window.DASHBOARD_DATA;
+    var charts = data && Array.isArray(data.charts) ? data.charts
+      : (Array.isArray(data) ? [{ question: "Result", rows: data }] : []);
+    var root = document.getElementById("hive-root");
+    if (!root) return;
+    root.innerHTML = "";
+    if (!charts.length) { root.innerHTML = '<div class="hive-error">No data to display.</div>'; return; }
+    var grid = document.createElement("div");
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px";
+    root.appendChild(grid);
+    charts.forEach(function (c) {
+      var rows = Array.isArray(c.rows) ? c.rows : [];
+      var card = document.createElement("div"); card.className = "hive-card";
+      var h = document.createElement("h3");
+      h.textContent = (c.plan && c.plan.title) || c.question || "Result";
+      card.appendChild(h);
+      if (!rows.length) {
+        var e = document.createElement("div"); e.className = "hive-muted"; e.textContent = "No rows.";
+        card.appendChild(e); grid.appendChild(card); return;
+      }
+      var keys = Object.keys(rows[0]);
+      var numKey = (c.plan && c.plan.y) || keys.filter(function (k) { return rows.every(function (r) { return num(r[k]) != null; }); })[0];
+      var labelKey = (c.plan && c.plan.x) || keys.filter(function (k) { return k !== numKey; })[0] || keys[0];
+      if (rows.length === 1 && numKey) {
+        var kpi = document.createElement("div"); kpi.className = "hive-kpi";
+        kpi.textContent = Number(rows[0][numKey]).toLocaleString(); card.appendChild(kpi);
+        var lbl = document.createElement("div"); lbl.className = "hive-muted"; lbl.textContent = numKey; card.appendChild(lbl);
+      } else if (numKey && window.Chart) {
+        var wrap = document.createElement("div"); wrap.style.cssText = "position:relative;height:260px";
+        var cv = document.createElement("canvas"); wrap.appendChild(cv); card.appendChild(wrap);
+        new Chart(cv.getContext("2d"), {
+          type: "bar",
+          data: {
+            labels: rows.map(function (r) { return String(r[labelKey]); }),
+            datasets: [{ label: numKey, data: rows.map(function (r) { return num(r[numKey]); }),
+              backgroundColor: rows.map(function (_, i) { return PALETTE[i % PALETTE.length]; }) }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+            scales: { x: { ticks: { color: "#8b95a5" }, grid: { color: "#232a36" } },
+              y: { ticks: { color: "#8b95a5" }, grid: { color: "#232a36" } } } }
+        });
+      } else {
+        var pre = document.createElement("pre"); pre.className = "hive-muted";
+        pre.textContent = JSON.stringify(rows.slice(0, 10), null, 2); card.appendChild(pre);
+      }
+      if (c.insight) { var cap = document.createElement("div"); cap.className = "hive-muted"; cap.textContent = c.insight; card.appendChild(cap); }
+      grid.appendChild(card);
+    });
   }
-  const keys = Object.keys(rows[0]);
-  const numericKey = plan.y || keys.find((k)=> rows.every((r)=> hiveNum(r[k]) != null));
-  const labelKey = plan.x || keys.find((k)=> k !== numericKey) || keys[0];
-  const caption = chart && chart.insight ? React.createElement("div",{style:captionStyle}, chart.insight) : null;
-  // Single value or single row -> KPI tile.
-  if (rows.length === 1 && numericKey) {
-    return React.createElement("div",{style:cardStyle},
-      React.createElement("h3",{style:titleStyle}, title),
-      React.createElement("div",{style:{fontSize:34,fontWeight:700,color:HIVE_PALETTE[0]}}, hiveFmt(rows[0][numericKey])),
-      React.createElement("div",{style:{color:"#8b95a5",fontSize:13,marginTop:4}}, numericKey),
-      caption);
-  }
-  const chartData = rows.map((r)=> ({ ...r, [numericKey]: hiveNum(r[numericKey]) }));
-  return React.createElement("div",{style:cardStyle},
-    React.createElement("h3",{style:titleStyle}, title),
-    React.createElement(ResponsiveContainer,{width:"100%",height:260},
-      React.createElement(BarChart,{data:chartData},
-        React.createElement(CartesianGrid,{stroke:"#232a36"}),
-        React.createElement(XAxis,{dataKey:labelKey, tick:{fill:"#8b95a5",fontSize:12}}),
-        React.createElement(YAxis,{tick:{fill:"#8b95a5",fontSize:12}, tickFormatter:hiveFmt}),
-        React.createElement(Tooltip,{contentStyle:{background:"#11151f",border:"1px solid #232a36",color:"#e6e6e6"}}),
-        React.createElement(Bar,{dataKey:numericKey, radius:[6,6,0,0]},
-          chartData.map((d,i)=> React.createElement(Cell,{key:i, fill:HIVE_PALETTE[i % HIVE_PALETTE.length]}))))),
-    caption);
-}
-
-function HiveFallback({ data }) {
-  const charts = data && Array.isArray(data.charts) ? data.charts
-    : Array.isArray(data) ? [{ question:"Result", rows:data }] : [];
-  if (!charts.length) {
-    return React.createElement("div",{style:{color:"#8b95a5",padding:16}}, "No data to display.");
-  }
-  return React.createElement("div",
-    { style:{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(320px, 1fr))", gap:16 } },
-    charts.map((c,i)=> React.createElement(HiveCard,{ key:i, chart:c })));
-}
-
-class HiveBoundary extends React.Component {
-  constructor(p){ super(p); this.state = { failed:false }; }
-  static getDerivedStateFromError(){ return { failed:true }; }
-  componentDidCatch(){ /* swallow — fallback covers it */ }
-  render(){
-    return this.state.failed
-      ? React.createElement(HiveFallback, { data: window.__DATA__ })
-      : this.props.children;
-  }
-}
-
-(function mount() {
-  const el = document.getElementById('root');
-  const ModelComp = (typeof ${mountName} !== 'undefined') ? ${mountName} : null;
-  let root;
-  try { root = ReactDOM.createRoot(el); }
-  catch (err) { el.innerHTML = '<div class="hive-error">' + String(err) + '</div>'; return; }
-
-  if (!ModelComp) {
-    root.render(React.createElement(HiveFallback, { data: window.__DATA__ }));
-    return;
-  }
-  root.render(React.createElement(HiveBoundary, null, React.createElement(ModelComp, { data: window.__DATA__ })));
-  // Catch the "renders nothing" case (no error thrown, just an empty root).
-  setTimeout(function(){
-    if (!el.textContent || el.textContent.replace(/\\s/g,'').length < 2) {
-      root.render(React.createElement(HiveFallback, { data: window.__DATA__ }));
-    }
-  }, 150);
+  window.__hiveFallback = fallback;
+  // A runtime error in the model's inline script -> draw the data ourselves.
+  window.addEventListener("error", function () { try { fallback(); } catch (e) {} });
+  // The "rendered nothing" case (no error, just an empty root).
+  setTimeout(function () {
+    var r = document.getElementById("hive-root");
+    if (!r) return;
+    var hasVis = r.querySelectorAll("canvas,svg,table,.hive-card").length > 0;
+    var hasText = r.textContent.replace(/\\s/g, "").length >= 2;
+    if (!hasVis && !hasText) { fallback(); }
+  }, 300);
 })();
 </script>
 </body>

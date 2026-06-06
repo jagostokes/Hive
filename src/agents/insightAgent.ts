@@ -12,7 +12,10 @@ import type {
 } from "../context/index.js";
 
 const SYSTEM_PROMPT =
-  "Extract 2-3 factual insights from the given data; cite only numbers present in it.";
+  "Write ONE concise analytical takeaway about the data — the single most useful " +
+  "headline finding (e.g. which category leads and by how much / what share, or the " +
+  "direction of a trend). One short sentence, no bullet lists, no row-by-row " +
+  "enumeration. Cite only numbers present in the data.";
 
 export interface InsightAgentDeps {
   context: ContextProvider;
@@ -78,7 +81,7 @@ function buildUserMessage(
 
   parts.push(
     "",
-    "Return 2-3 short factual insights. Cite only numbers that appear in the data above.",
+    "Return ONE short analytical sentence (the headline takeaway). No lists. Cite only numbers that appear in the data above.",
   );
   return parts.join("\n");
 }

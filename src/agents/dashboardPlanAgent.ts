@@ -13,7 +13,12 @@ import type {
 
 const SYSTEM_PROMPT =
   "Given result data, output a JSON chart spec (type, x, y, title) using only " +
-  "columns present in the data.";
+  "columns present in the data. Choose the type that fits the data: " +
+  '"line" for a trend over a date/time/month/day column; ' +
+  '"doughnut" for a part-of-whole / share breakdown across a few categories; ' +
+  '"kpi" for a single scalar result (one row or one number) — omit x; ' +
+  '"bar" for comparing a numeric value across categories (the default). ' +
+  "For trends, set x to the date/time column and y to the numeric measure.";
 
 export interface DashboardPlanAgentDeps {
   context: ContextProvider;
@@ -79,7 +84,8 @@ function buildUserMessage(
 
   parts.push(
     "",
-    'Return ONLY a JSON object: {"type": "...", "x": "...", "y": "...", "title": "..."}.',
+    'Return ONLY a JSON object: {"type":"bar|line|doughnut|kpi","x":"<category/date column, omit for kpi>","y":"<numeric column>","title":"..."}.',
+    "Pick line for a date/time trend, doughnut for share-of-total, kpi for a single value, bar otherwise.",
   );
   return parts.join("\n");
 }

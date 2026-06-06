@@ -3,7 +3,6 @@
 // fed back so the agent can self-correct. PURE functions — NO model calls
 // anywhere in here. (sqlVerifier does read-only DB I/O; the rest are pure compute.)
 import ts from "typescript";
-import { createContext, runInContext } from "node:vm";
 import type { ResultRow, ColumnDictEntry } from "../context/index.js";
 
 export interface VerifierResult {
@@ -304,80 +303,78 @@ function collectPlanColumnRefs(plan: unknown, acc: string[] = []): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// 4. renderVerifier — headless compile of the React component. ok=false if it
-//    fails to build, with the build error as the reason.
+// 4. renderVerifier — objective build check of the generated dashboard HTML.
+//    Both lanes emit a self-contained HTML fragment (markup + an inline <script>
+//    that draws charts with Chart.js). ok=false if it is empty, carries no
+//    visualization, or any inline <script> has a JavaScript syntax error.
 // ---------------------------------------------------------------------------
 
+// A real dashboard must contain at least one of these — a chart, an inline
+// drawing, or a data table. Otherwise it's just prose / an empty shell.
+const VISUALIZATION_RE = /<canvas\b|<svg\b|new\s+Chart\s*\(|<table\b/i;
+
+// Inline <script> blocks (excludes <script src="...">), captured for syntax
+// checking. The model's chart code lives here.
+const INLINE_SCRIPT_RE = /<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
+
 /**
- * Attempts a headless build of `componentCode`: transpile the JSX/TSX with the
- * TypeScript compiler (catches syntax/build errors), then load the emitted
- * module in an isolated VM with stubbed `react`/`react-dom` so top-level
- * reference errors and bad imports surface. The component is NOT invoked (that
- * needs real props), so this is a build/load check, not a full paint.
- *   ok=false if transpile reports a syntactic error or the module throws on load;
- *   reason = the build/load error message.
+ * Verifies the generated dashboard HTML builds:
+ *   - non-empty,
+ *   - contains a visualization (canvas / svg / Chart.js / table),
+ *   - every inline <script> is syntactically valid JavaScript (parsed, NOT
+ *     executed — it references browser globals like `document`/`Chart` that only
+ *     exist at render time; the host's fallback covers runtime issues).
+ * reason = the first failing check's message.
  */
-export function renderVerifier(componentCode: string): VerifierResult {
-  if (!componentCode || componentCode.trim() === "") {
-    return { ok: false, reason: "component code is empty" };
+export function renderVerifier(html: string): VerifierResult {
+  if (!html || html.trim() === "") {
+    return { ok: false, reason: "dashboard HTML is empty" };
   }
 
-  // Stage 1: transpile (build). transpileModule surfaces syntactic errors.
-  let transpiled: ts.TranspileOutput;
-  try {
-    transpiled = ts.transpileModule(componentCode, {
-      compilerOptions: {
-        jsx: ts.JsxEmit.React,
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2020,
-        esModuleInterop: true,
-      },
-      reportDiagnostics: true,
-      fileName: "component.tsx",
-    });
-  } catch (err) {
-    return { ok: false, reason: `transpile failed: ${errMessage(err)}` };
-  }
-
-  const fatal = (transpiled.diagnostics ?? []).find(
-    (d) => d.category === ts.DiagnosticCategory.Error,
-  );
-  if (fatal) {
+  if (!VISUALIZATION_RE.test(html)) {
     return {
       ok: false,
-      reason: ts.flattenDiagnosticMessageText(fatal.messageText, "\n"),
+      reason: "no visualization found — expected a <canvas> (Chart.js), <svg>, or <table>",
     };
   }
 
-  // Stage 2: load the emitted module in a sandbox. Stub module resolution so
-  // imports of react/charting libs don't crash the load; we only want to catch
-  // top-level errors (e.g. an undefined identifier outside the component body).
-  const reactStub = {
-    createElement: (...args: unknown[]) => ({ __el: args }),
-    Fragment: "Fragment",
-    default: {},
-  };
-  const stubRequire = (_name: string): unknown =>
-    new Proxy(reactStub, { get: (t, p) => (p in t ? (t as never)[p] : () => undefined) });
-
-  const moduleObj = { exports: {} as Record<string, unknown> };
-  const sandbox = {
-    require: stubRequire,
-    module: moduleObj,
-    exports: moduleObj.exports,
-    console,
-    React: reactStub,
-  };
-
-  try {
-    runInContext(transpiled.outputText, createContext(sandbox), {
-      timeout: 1000,
-    });
-  } catch (err) {
-    return { ok: false, reason: `module load failed: ${errMessage(err)}` };
+  let match: RegExpExecArray | null;
+  INLINE_SCRIPT_RE.lastIndex = 0;
+  while ((match = INLINE_SCRIPT_RE.exec(html)) !== null) {
+    const script = match[1];
+    if (!script || script.trim() === "") continue;
+    const syntaxError = findScriptSyntaxError(script);
+    if (syntaxError) {
+      return { ok: false, reason: `inline script syntax error: ${syntaxError}` };
+    }
   }
 
   return { ok: true };
+}
+
+// Syntax-only check of an inline script via the TS compiler. We transpile (which
+// surfaces syntactic errors) without executing, so references to runtime globals
+// (document, window, Chart) are fine.
+function findScriptSyntaxError(script: string): string | null {
+  let transpiled: ts.TranspileOutput;
+  try {
+    transpiled = ts.transpileModule(script, {
+      compilerOptions: {
+        module: ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ES2020,
+      },
+      reportDiagnostics: true,
+      fileName: "dashboard.js",
+    });
+  } catch (err) {
+    return errMessage(err);
+  }
+  // Only count diagnostics anchored in the script itself (real syntax errors);
+  // option/global diagnostics (no `file`) are not about the code.
+  const fatal = (transpiled.diagnostics ?? []).find(
+    (d) => d.category === ts.DiagnosticCategory.Error && d.file !== undefined,
+  );
+  return fatal ? ts.flattenDiagnosticMessageText(fatal.messageText, "\n") : null;
 }
 
 // ---------------------------------------------------------------------------

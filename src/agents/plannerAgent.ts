@@ -12,7 +12,12 @@ const SYSTEM_PROMPT =
   "glossary. Mark dependencies: a sub-question depends on another ONLY when it " +
   "literally needs that other sub-question's result as input. Independent " +
   "sub-questions (e.g. separate metrics asked for in the same question) must have " +
-  "no dependencies so they can run in parallel. Return ONLY JSON.";
+  "no dependencies so they can run in parallel. " +
+  "CRITICAL: each sub-question is answered INDEPENDENTLY with no shared context, so " +
+  "every sub-question MUST be fully self-contained — restate ALL shared qualifiers " +
+  "from the original question in EACH one: time windows (e.g. 'in the last 30 days'), " +
+  "status/segment filters (e.g. 'paid orders only'), groupings, and units. A " +
+  "sub-question must read as a complete question on its own. Return ONLY JSON.";
 
 export interface PlanNode {
   id: string;
@@ -77,6 +82,9 @@ function buildUserMessage(
       '{"id":"q2","question":"...","dependsOn":["q1"]}]}',
     "Use short ids (q1, q2, ...). dependsOn lists ids that must finish first; " +
       "use [] for independent sub-questions.",
+    "Each sub-question must be self-contained: carry over every filter from the " +
+      "original question (date range, status, segment) into each sub-question text, " +
+      "because each is run on its own without the others' context.",
   ];
 
   if (feedback) {

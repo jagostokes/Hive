@@ -24,8 +24,8 @@ const MAX_TOOL_ROWS = 200;
 
 const SYSTEM_PROMPT = `You are a senior data analyst. Answer the user's question end to end using ONLY the provided database.
 - Use the execute_sql tool to run read-only SQL queries and inspect the REAL results. Query as many times as you need.
-- Then produce ONE self-contained React function component (using the "recharts" library) that renders a dashboard answering the question. Embed the actual queried data directly in the component (no required props).
-- When you are finished, reply with ONLY the React component code — no prose, no markdown fences, and no further tool calls.
+- Then produce ONE self-contained HTML dashboard fragment that visualizes the answer. Embed the actual queried data directly in your inline script.
+- When you are finished, reply with ONLY the HTML fragment — no prose, no markdown fences, and no further tool calls.
 
 ${DASHBOARD_DESIGN_BRIEF}`;
 
@@ -123,7 +123,7 @@ export async function runBaselineLane(
       continue;
     }
 
-    // Otherwise this turn is the final component. Verify it renders; if not, let
+    // Otherwise this turn is the final dashboard. Verify it renders; if not, let
     // the SAME strong model fix it once more within its own loop.
     code = stripCodeFence(res.text);
     const v = renderVerifier(code);
@@ -134,7 +134,7 @@ export async function runBaselineLane(
     messages.push({ role: "assistant", content: res.text });
     messages.push({
       role: "user",
-      content: `That component failed to build/render: ${v.reason}\nReturn ONLY the corrected self-contained React component.`,
+      content: `That dashboard failed to build/render: ${v.reason}\nReturn ONLY the corrected self-contained HTML fragment.`,
     });
   }
 

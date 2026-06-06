@@ -114,19 +114,28 @@ async function main(): Promise<void> {
   );
 
   // 4. renderVerifier ------------------------------------------------------
-  const goodComponent = `
-    import React from "react";
-    export default function Chart({ data }) {
-      return <div className="chart">{data.length} rows</div>;
-    }
+  const goodDashboard = `
+    <div class="hive-card">
+      <h3>Revenue by Region</h3>
+      <div style="position:relative;height:260px"><canvas id="c1"></canvas></div>
+      <script>
+        const rows = DASHBOARD_DATA.charts[0].rows;
+        new Chart(document.getElementById("c1").getContext("2d"), {
+          type: "bar",
+          data: { labels: rows.map(r => r.region), datasets: [{ data: rows.map(r => Number(r.revenue)) }] }
+        });
+      </script>
+    </div>
   `;
-  const badComponent = `
-    export default function Chart({ data }) {
-      return <div className="chart">{data.length</div>   // unterminated expression
-    }
+  const badDashboardSyntax = `
+    <div class="hive-card"><canvas id="c1"></canvas>
+      <script>const rows = [1, 2, 3 ; new Chart()</script>
+    </div>
   `;
-  check("renderVerifier / good (valid component compiles)", renderVerifier(goodComponent), true);
-  check("renderVerifier / bad (syntax error)", renderVerifier(badComponent), false);
+  const badDashboardNoViz = `<div class="hive-card"><h3>Revenue</h3><p>Total was 1000.</p></div>`;
+  check("renderVerifier / good (valid HTML + chart, syntactically sound script)", renderVerifier(goodDashboard), true);
+  check("renderVerifier / bad (inline script syntax error)", renderVerifier(badDashboardSyntax), false);
+  check("renderVerifier / bad (no visualization)", renderVerifier(badDashboardNoViz), false);
 
   // Summary ---------------------------------------------------------------
   console.log(`\n${passed} passed, ${failed} failed`);

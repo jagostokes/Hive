@@ -74,18 +74,18 @@ async function main(): Promise<void> {
     : { type: "bar", x: "region", y: "revenue", title: "Revenue by Region" };
   const codeGen = await runCodeGenAgent(plan, resultRows, { context });
   console.log("trail:", trail(codeGen.attempts));
-  if (codeGen.ok) console.log("component (first 300 chars):\n" + codeGen.data.code.slice(0, 300));
+  if (codeGen.ok) console.log("dashboard HTML (first 300 chars):\n" + codeGen.data.code.slice(0, 300));
   else console.log("graceful failure:", codeGen.reason);
 
-  // 4. codeEditAgent (its job: fix a broken component) ---------------------
+  // 4. codeEditAgent (its job: fix a broken dashboard) ---------------------
   header("codeEditAgent (only invoked on a render failure)");
-  const broken = `export default function Chart({ data }) {
-  return <div className="chart">{data.map(d => <span>{d.revenue</span>)}</div>;
-}`;
-  const error = "SyntaxError: Unexpected token, expected '}' (rendering failed)";
+  const broken = `<div class="hive-card"><canvas id="c1"></canvas>
+  <script>const rows = [1, 2, 3 ; new Chart(document.getElementById("c1"))</script>
+</div>`;
+  const error = "inline script syntax error: ',' expected.";
   const codeEdit = await runCodeEditAgent(broken, error, { context });
   console.log("trail:", trail(codeEdit.attempts));
-  if (codeEdit.ok) console.log("fixed component (first 300 chars):\n" + codeEdit.data.code.slice(0, 300));
+  if (codeEdit.ok) console.log("fixed dashboard HTML (first 300 chars):\n" + codeEdit.data.code.slice(0, 300));
   else console.log("graceful failure:", codeEdit.reason);
 }
 

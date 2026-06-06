@@ -124,7 +124,10 @@ async function main(): Promise<void> {
       const res = await fetch(server.url);
       const html = await res.text();
       const looksRenderable =
-        res.status === 200 && html.includes('id="root"') && html.includes("ReactDOM.createRoot");
+        res.status === 200 &&
+        html.includes('id="hive-root"') &&
+        html.includes("chart.js") &&
+        /<canvas\b|<svg\b|new\s+Chart\s*\(|<table\b/i.test(html);
       console.log(`  GET ${server.url} -> HTTP ${res.status}, ${html.length} bytes, renderable=${looksRenderable}`);
       if (!looksRenderable) process.exitCode = 1;
     }

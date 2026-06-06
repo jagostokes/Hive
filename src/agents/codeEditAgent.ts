@@ -1,7 +1,7 @@
-// agents/codeEditAgent: fixes a broken React component given its render error.
-// Uses the fast-apply edit model (role: codeEdit). Follows the runner template.
-// Scoped context = forCodeEdit (the component + the error only) — no schema, no
-// glossary, no data. Only invoked when codeGen's output fails to render.
+// agents/codeEditAgent: fixes a broken dashboard HTML fragment given its render
+// error. Uses the fast-apply edit model (role: codeEdit). Follows the runner
+// template. Scoped context = forCodeEdit (the HTML + the error only) — no schema,
+// no glossary, no data. Only invoked when codeGen's output fails to render.
 import { runAgent, type AgentResult, type AttemptFeedback } from "./runner.js";
 import { renderVerifier } from "../verifiers/index.js";
 import { stripCodeFence } from "./parse.js";
@@ -9,7 +9,7 @@ import { escalationFor } from "../../config/models.js";
 import type { ContextProvider, CodeEditContext } from "../context/index.js";
 
 const SYSTEM_PROMPT =
-  "Given a broken component and its render error, return the fixed component. Code only.";
+  "Given a broken HTML dashboard fragment and its error, return the fixed HTML fragment. HTML only.";
 
 export interface CodeEditAgentDeps {
   context: ContextProvider;
@@ -63,9 +63,9 @@ function buildUserMessage(
   const renderError = feedback?.reason ?? scoped.error;
 
   const update =
-    `${SYSTEM_PROMPT} The component fails to build/render with this error: ` +
-    `${renderError}. Rewrite it so it compiles and renders, returning the ` +
-    `complete corrected component (code only).`;
+    `${SYSTEM_PROMPT} The dashboard fails to build/render with this error: ` +
+    `${renderError}. Rewrite it so it is valid and renders, returning the ` +
+    `complete corrected HTML fragment (HTML only).`;
 
   return `<code>\n${code}\n</code>\n<update>\n${update}\n</update>`;
 }
