@@ -15,6 +15,6 @@
     "noUnusedParameters": true,
     "noImplicitOverride": true
   },
-  "include": ["src/**/*.ts", "config/**/*.ts"],
+  "include": ["src/**/*.ts", "config/**/*.ts", "scripts/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
