@@ -31,6 +31,17 @@ question ─┬─► orchestrator ─► decompose ─► sub-agents (cheap mod
 ### Loop caps
 Every retry/escalate loop is capped: **2 cheap attempts + 1 escalation, then stop.**
 
+### DAG dependency behavior
+The planner decomposes questions into a directed acyclic graph (DAG) of sub-questions. **Dependencies enforce temporal ordering, not data flow.** This means:
+
+- Dependent sub-questions run after their dependencies complete
+- However, dependent sub-questions do **not** receive their dependency's result data as context
+- Each sub-question generates SQL from the schema independently
+
+**Rationale**: This design prioritizes parallelism and simplicity. Most analytical questions can be answered by independent queries against the same schema. Data threading would add complexity (context injection, result serialization) and is only needed for multi-step workflows where later steps truly require intermediate results.
+
+**When this matters**: If you need a sub-question to filter/process its dependency's actual results (e.g., "analyze the outliers from the previous trend"), this would require extending the lane to pass result data between dependent sub-questions.
+
 ## Hard requirements
 - **TypeScript + Node**, local orchestrator.
 - **InsForge Postgres** as the data source.

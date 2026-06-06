@@ -14,7 +14,10 @@
     "test:verifiers": "tsx scripts/verifiersTest.ts",
     "test:sql-agent": "tsx scripts/sqlAgentTest.ts",
     "test:agents": "tsx scripts/agentsTest.ts",
-    "test:planner-cache": "tsx scripts/plannerCacheTest.ts"
+    "test:planner-cache": "tsx scripts/plannerCacheTest.ts",
+    "test:orchestrator": "tsx scripts/orchestratorTest.ts",
+    "test:comparison": "tsx scripts/comparisonTest.ts",
+    "compare": "tsx scripts/compare.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
