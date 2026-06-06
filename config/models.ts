@@ -43,7 +43,7 @@ export const MODELS: Record<ModelRole, ModelSpec> = {
   // the baseline flagship, so the brain lane keeps its large cost advantage.
   codeGen: { slug: "qwen/qwen3-coder-plus", inputPerMillion: 0.65, outputPerMillion: 3.3 },
   codeEdit: { slug: "relace/relace-apply-3", inputPerMillion: 0.85, outputPerMillion: 1.3 },
-  baseline: { slug: "openai/gpt-5.5-pro", inputPerMillion: 30.0, outputPerMillion: 180.0 },
+  baseline: { slug: "anthropic/claude-opus-4.8", inputPerMillion: 5.0, outputPerMillion: 25.0 },
 };
 
 // Capped loops apply to every agent: a few cheap attempts, then one escalation,
