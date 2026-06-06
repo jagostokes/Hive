@@ -54,7 +54,12 @@ export async function runPlanner(
     // No escalation: retry once on the planner model, then fail gracefully.
     lane: "brain",
     temperature: 0,
-    maxTokens: 1200,
+    // The planner model is a reasoning model: its hidden reasoning trace shares
+    // the completion budget. 1200 was too small — a long trace exhausted it and
+    // the response came back truncated with EMPTY content (finish_reason:length),
+    // which deterministically failed both tries at temp 0. Give it ample room so
+    // reasoning + the (small) JSON both fit.
+    maxTokens: 4000,
     buildUserMessage: (feedback) => buildUserMessage(scoped, question, feedback),
     // Parse + validate + build the DAG. Any problem throws and is reported as a
     // verified failure so the model can correct on the retry.

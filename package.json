@@ -18,7 +18,9 @@
     "test:orchestrator": "tsx scripts/orchestratorTest.ts",
     "test:comparison": "tsx scripts/comparisonTest.ts",
     "test:cache-reuse": "tsx scripts/cacheReuseTest.ts",
+    "seed:glossary": "tsx scripts/seedGlossary.ts",
     "seed:cache": "tsx scripts/seedCache.ts",
+    "populate:cache": "tsx scripts/populateSqlCache.ts",
     "compare": "tsx scripts/compare.ts"
   },
   "dependencies": {

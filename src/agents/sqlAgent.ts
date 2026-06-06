@@ -6,20 +6,33 @@ import { runAgent, type AgentResult, type AttemptFeedback } from "./runner.js";
 import { sqlVerifier } from "../verifiers/index.js";
 import { runReadOnlyQuery } from "../db/index.js";
 import { callModel } from "../models/index.js";
-import { escalationFor } from "../../config/models.js";
+import { escalationFor, type ModelRole } from "../../config/models.js";
 import type { ContextProvider, ResultRow, SqlContext } from "../context/index.js";
 
 // This agent's single role. Sent as the system message — separate from the
 // injected context, which goes in the user message.
 const SYSTEM_PROMPT =
-  "You write a single read-only SQL query for the given question using ONLY the " +
-  "provided schema and glossary. Return SQL only.";
+  "You write a single read-only PostgreSQL query that answers the question, using " +
+  "ONLY the tables/columns in the provided schema and the glossary expressions. " +
+  "Rules: use EXACT table and column names as given (never invent or guess names); " +
+  "write valid PostgreSQL; aggregate/group as needed; if the question has multiple " +
+  "parts, answer the single most important part with ONE query (do not emit multiple " +
+  "statements). Prefer a query that returns a small, chart-ready result set " +
+  "(grouped rows or a single value), not raw rows. Return SQL only — no prose, no " +
+  "code fences.";
 
 export interface SqlAgentDeps {
   context: ContextProvider;
   db: Pool;
   /** Reject results larger than this (passed to sqlVerifier). */
   maxRows?: number;
+  /**
+   * Override the model escalated to after cheap attempts fail. Defaults to the
+   * configured sqlGen escalation. The orchestrator's whole-question fallback sets
+   * this to the flagship as a last resort, so it produces SQL whenever the
+   * question is answerable at all.
+   */
+  escalationRole?: ModelRole;
 }
 
 export interface SqlAgentSuccess {
@@ -45,7 +58,7 @@ export async function runSqlAgent(
     name: "sql",
     systemPrompt: SYSTEM_PROMPT,
     cheapRole: "sqlGen",
-    escalationRole: escalationFor("sqlGen"),
+    escalationRole: deps.escalationRole ?? escalationFor("sqlGen"),
     lane: "brain",
     temperature: 0,
     buildUserMessage: (feedback) => buildUserMessage(scoped, subQuestion, feedback),
@@ -86,6 +99,21 @@ function buildUserMessage(
       `Previous SQL:\n${feedback.previousOutput.trim()}`,
       `Failure reason: ${feedback.reason}`,
     );
+    // An empty result is a valid query against absent data, not a syntax bug.
+    // Resubmitting the same filter would just fail again, which is what sinks
+    // the whole lane. Mirror the baseline's behavior: broaden the query so it
+    // returns the data that DOES exist, rather than returning nothing.
+    if (/\b0 rows\b/i.test(feedback.reason)) {
+      parts.push(
+        "",
+        "The query is syntactically valid but matched NO rows. Do not resubmit the " +
+          "same filter. The data likely does not cover the requested slice — remove or " +
+          "widen the most restrictive predicate (especially a specific date/year/time " +
+          "window, or a status/category value that may not exist) so the query returns " +
+          "the available data. Answering the broader question is far better than " +
+          "returning nothing.",
+      );
+    }
   }
 
   parts.push("", "Return the SQL query only, no prose, no code fences.");

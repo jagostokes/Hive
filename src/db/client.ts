@@ -25,8 +25,10 @@ export function getPool(): Pool {
 }
 
 export async function closePool(): Promise<void> {
-  if (pool) {
-    await pool.end();
-    pool = null;
-  }
+  // Null the handle BEFORE awaiting so a concurrent/second call (e.g. SIGINT +
+  // SIGTERM, or a double Ctrl+C) doesn't call pool.end() twice — which throws
+  // "Called end on pool more than once".
+  const p = pool;
+  pool = null;
+  if (p) await p.end();
 }

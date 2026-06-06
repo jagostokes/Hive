@@ -36,6 +36,10 @@ export interface CallUsage {
 export interface CallResult {
   text: string;
   usage: CallUsage;
+  /** Why the model stopped (e.g. "stop", "length", "tool_calls"). "length" with
+   *  empty text means the completion was truncated — usually too small a budget
+   *  for a reasoning model whose hidden trace ate the tokens. */
+  finishReason?: string;
   /** Present when the model requested tool calls (tools were provided). */
   toolCalls?: NonNullable<
     OpenAI.Chat.Completions.ChatCompletionMessage["tool_calls"]
@@ -124,6 +128,7 @@ export async function callModel(args: CallModelArgs): Promise<CallResult> {
   const choice = response.choices[0];
   const text = choice?.message?.content ?? "";
   const toolCalls = choice?.message?.tool_calls;
+  const finishReason = choice?.finish_reason ?? undefined;
 
   // OpenRouter mirrors OpenAI's usage shape. Default to 0 if a provider omits it.
   const promptTokens = response.usage?.prompt_tokens ?? 0;
@@ -142,6 +147,7 @@ export async function callModel(args: CallModelArgs): Promise<CallResult> {
   return {
     text,
     usage: { promptTokens, completionTokens },
+    ...(finishReason ? { finishReason } : {}),
     ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
   };
 }

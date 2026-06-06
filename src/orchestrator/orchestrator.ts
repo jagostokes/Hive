@@ -21,6 +21,7 @@ import {
   type PlanNode,
 } from "../agents/index.js";
 import { cacheLookup, cacheStore } from "../cache/index.js";
+import type { ModelRole } from "../../config/models.js";
 import {
   getLedger,
   getTotals,
@@ -147,6 +148,14 @@ interface LaneDeps {
   context: ContextProvider;
   db: Pool;
   cacheThreshold?: number;
+  /** Override the SQL escalation model (the fallback lane uses the flagship). */
+  sqlEscalation?: ModelRole;
+}
+
+// Concise stderr diagnostics so brain-lane failures are observable (why a lane
+// failed, when the whole-question fallback fires). Stdout is untouched.
+function brainLog(...args: unknown[]): void {
+  console.error("[brain]", ...args);
 }
 
 /**
@@ -204,8 +213,13 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
   }
 
   if (!sql || !rows) {
-    const sqlRes = await runSqlAgent(node.question, { context: deps.context, db: deps.db });
+    const sqlRes = await runSqlAgent(node.question, {
+      context: deps.context,
+      db: deps.db,
+      ...(deps.sqlEscalation ? { escalationRole: deps.sqlEscalation } : {}),
+    });
     if (!sqlRes.ok) {
+      brainLog(`lane ${node.id} SQL failed: ${sqlRes.reason} — "${node.question}"`);
       return { ...base, ok: false, failedStage: "sql", failure: sqlRes.reason, finishedAt: Date.now() };
     }
     sql = sqlRes.data.sql;
@@ -299,11 +313,22 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
   //     tried exactly that). Piecewise decomposition can fail while the question's
   //     primary intent is answerable as one query.
   if (charts.length === 0) {
-    const alreadyTriedWhole = lanes.some((l) => l.question.trim() === question.trim());
-    if (!alreadyTriedWhole) {
-      const mainLane = await runLane({ id: "main", question, dependsOn: [] }, laneDeps);
-      lanes.push(mainLane);
-      if (mainLane.ok) charts.push(toChart(mainLane));
+    brainLog(
+      `no sub-question produced a chart (${lanes.length} lane(s) tried); running the whole question as a single main query with a flagship SQL last resort.`,
+    );
+    // The fallback escalates SQL to the flagship model so it produces a result
+    // whenever the question is answerable — the brain lane should not collapse
+    // just because the cheap models couldn't decompose/answer it. We always run
+    // it (even if a sub-question matched the whole question) because prior
+    // attempts used only the cheaper escalation.
+    const fallbackDeps: LaneDeps = { ...laneDeps, sqlEscalation: "baseline" };
+    const mainLane = await runLane({ id: "main", question, dependsOn: [] }, fallbackDeps);
+    lanes.push(mainLane);
+    if (mainLane.ok) {
+      charts.push(toChart(mainLane));
+      brainLog("main-query fallback succeeded.");
+    } else {
+      brainLog(`main-query fallback also failed: ${mainLane.failure}`);
     }
   }
 

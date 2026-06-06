@@ -127,7 +127,7 @@ export async function runAgent<TOutput, TData>(
       const userMessage = spec.buildUserMessage(feedback);
       const messages = buildMessages(spec, userMessage);
 
-      const { text } = await callModel({
+      const { text, finishReason } = await callModel({
         role,
         lane,
         messages,
@@ -140,11 +140,24 @@ export async function runAgent<TOutput, TData>(
       // than crashing the run.
       let output: TOutput | undefined;
       let outcome: VerifyOutcome<TData>;
-      try {
-        output = spec.parse(text);
-        outcome = await spec.verify(output);
-      } catch (err) {
-        outcome = { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      if (!text.trim()) {
+        // Empty completion — almost always a truncated reasoning model (the hidden
+        // trace ate the token budget). Report it clearly rather than letting parse
+        // raise a misleading "no JSON found".
+        outcome = {
+          ok: false,
+          reason:
+            finishReason === "length"
+              ? "model returned empty output (truncated: completion budget too small for this model's reasoning — raise maxTokens)"
+              : "model returned empty output",
+        };
+      } else {
+        try {
+          output = spec.parse(text);
+          outcome = await spec.verify(output);
+        } catch (err) {
+          outcome = { ok: false, reason: err instanceof Error ? err.message : String(err) };
+        }
       }
 
       const model = MODELS[role].slug;
