@@ -38,8 +38,8 @@ body {
   /* Faint honeycomb watermark — a single tiled SVG painted at low opacity.
      Each unit is a flat-topped hexagon outline. This is the warmth/texture cue
      for the whole product; deliberately at the edge of visibility. */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 84 96' width='84' height='96'><g fill='none' stroke='%23c9b890' stroke-width='1.1' opacity='0.55'><polygon points='42,2 80,24 80,72 42,94 4,72 4,24'/><polygon points='0,48 4,48' /></g></svg>");
-  background-size: 84px 96px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 42 48' width='42' height='48'><g fill='none' stroke='%23c4b489' stroke-width='0.9' opacity='0.45'><polygon points='21,1 40,12 40,36 21,47 2,36 2,12'/></g></svg>");
+  background-size: 42px 48px;
   background-position: center top;
   background-repeat: repeat;
   background-attachment: fixed;
@@ -108,17 +108,18 @@ a {
 
 /* hex-dotted vertical divider used between workspace panels */
 .hex-divider {
-  width: 1px;
+  width: 2px;
   background-image: linear-gradient(
     to bottom,
     transparent 0,
-    transparent 4px,
-    var(--line) 4px,
-    var(--line) 10px,
-    transparent 10px,
+    transparent 3px,
+    var(--bark-soft) 3px,
+    var(--bark-soft) 11px,
+    transparent 11px,
     transparent 14px
   );
-  background-size: 1px 14px;
+  background-size: 2px 14px;
+  opacity: 0.55;
 }
 
 /* keyframes used across components */
@@ -147,6 +148,18 @@ a {
   }
   100% {
     transform: translate(0, 0);
+  }
+}
+
+/* Sprite-strip animation: walks background-position-y from 0 to --sprite-end-y
+   in N steps. Each consumer sets --sprite-end-y to -(stripHeight - frameHeight)
+   and chooses a duration. */
+@keyframes sprite-strip {
+  from {
+    background-position-y: 0;
+  }
+  to {
+    background-position-y: var(--sprite-end-y);
   }
 }
 

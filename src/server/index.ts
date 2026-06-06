@@ -11,6 +11,9 @@
 // The brain and baseline lanes share the global model ledger (each entry is
 // tagged with its lane). We reset the ledger once at the start, then poll
 // getLedger()/getTotals() between calls to stream per-model cost into the UI.
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { cors } from "hono/cors";
@@ -40,18 +43,54 @@ const BRAIN_AGENT_ROLES: ModelRole[] = [
 
 app.get("/api/models", (c) =>
   c.json({
-    brain: BRAIN_AGENT_ROLES.map((role) => ({
-      role,
-      slug: MODELS[role].slug,
-      label: prettyModelLabel(MODELS[role].slug),
-    })),
-    baseline: {
-      role: "baseline" as ModelRole,
-      slug: MODELS.baseline.slug,
-      label: prettyModelLabel(MODELS.baseline.slug),
-    },
+    brain: BRAIN_AGENT_ROLES.map((role) => describeAgent(role)),
+    baseline: describeAgent("baseline"),
   }),
 );
+
+function describeAgent(role: ModelRole) {
+  const slug = MODELS[role].slug;
+  return {
+    role,
+    slug,
+    label: prettyModelLabel(slug),
+    params: paramsFromSlug(slug),
+  };
+}
+
+// Params published in the slug name (e.g. "qwen3-coder-30b-..." → "30B").
+// For slugs without a number, fall back to a small table of known totals so the
+// UI can render something meaningful. Unknowns return null and the UI hides the line.
+const KNOWN_PARAMS: Record<string, string> = {
+  "qwen/qwen3-coder-plus": "480B",
+  "deepseek/deepseek-v4-pro": "236B",
+  "deepseek/deepseek-v4-flash": "16B",
+  "google/gemini-2.5-flash-lite": "8B",
+  "anthropic/claude-opus-4.8": "—",
+  "relace/relace-apply-3": "7B",
+  "openai/text-embedding-3-small": "—",
+};
+
+function paramsFromSlug(slug: string): string | null {
+  const m = slug.match(/(\d+(?:\.\d+)?)\s*b\b/i);
+  if (m) return `${m[1]}B`;
+  return KNOWN_PARAMS[slug] ?? null;
+}
+
+// Serve the thesis paper (docs/THESIS.md) as raw markdown so the UI can render
+// it in-app. Resolved relative to this source file, not cwd, so it works no
+// matter where the server is launched from.
+app.get("/api/thesis", async (c) => {
+  try {
+    const here = path.dirname(fileURLToPath(import.meta.url)); // src/server
+    const thesisPath = path.resolve(here, "../../docs/THESIS.md");
+    const md = await readFile(thesisPath, "utf8");
+    c.header("content-type", "text/markdown; charset=utf-8");
+    return c.body(md);
+  } catch {
+    return c.json({ error: "thesis not found" }, 404);
+  }
+});
 
 app.post("/api/run", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { question?: string };
@@ -139,10 +178,8 @@ app.get("/api/run/:id/html/:lane", (c) => {
   const html = lane === "brain" ? run.brain.html : run.baseline.html;
   if (!html) return c.json({ error: "html not ready" }, 404);
   c.header("content-type", "text/html; charset=utf-8");
-  c.header(
-    "content-disposition",
-    `attachment; filename="hive-${lane}-${id.slice(0, 8)}.html"`,
-  );
+  const filename = lane === "brain" ? "BRAIN-METHOD.html" : "LLM-METHOD.html";
+  c.header("content-disposition", `attachment; filename="${filename}"`);
   return c.body(html);
 });
 
@@ -157,10 +194,16 @@ async function startBrain(runId: string, question: string): Promise<void> {
     // We share the ledger across both lanes in this paired run, so DO NOT let
     // the orchestrator reset it. It already gets reset once at /api/run start.
     const result = await runBrainLane(question, { serve: false, freshLedger: false });
+    // Detect a full-skip cache hit (no sqlGen call). When ANY successful lane's
+    // sqlSource is "cache" AND no brain-lane sqlGen ledger entry exists, sqlGen
+    // was entirely skipped for that sub-question — mark the role as cached.
+    const anyCachedFully = result.lanes.some((l) => l.ok && l.sqlSource === "cache");
+    const sqlGenRan = result.ledger.some((e) => e.lane === "brain" && e.role === "sqlGen");
     runStore.update(runId, (r) => {
       r.brain.status = result.ok ? "complete" : "error";
       r.brain.finishedAt = Date.now();
       r.brain.html = result.dashboard?.html ?? null;
+      r.brain.cachedRoles = anyCachedFully && !sqlGenRan ? ["sqlGen"] : [];
       if (!result.ok) r.brain.reason = result.reason ?? "render failed";
     });
   } catch (err) {

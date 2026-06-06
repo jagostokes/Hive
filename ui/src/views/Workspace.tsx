@@ -1,10 +1,6 @@
-// Workspace: the two-panel side-by-side. Left = the Hive (brain swarm). Right =
-// the single LLM (baseline). The user types ONE question, both panels run their
-// respective lanes in parallel against the shared run ledger.
-//
-// IMPORTANT: a paired run is keyed by a SINGLE runId. We start the run from
-// either input box (both inputs submit the same question to the same run), and
-// then both panels read live state off the SSE event stream.
+// Workspace: the two-panel side-by-side. ONE universal question input sits
+// above both panels; submitting kicks off both lanes against a single runId.
+// Layout is sized to fit a typical desktop viewport without scrolling.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
@@ -25,8 +21,7 @@ import { BeeSwarm } from "../components/BeeSwarm";
 import { DropProgress } from "../components/DropProgress";
 import { AnalyticsCard } from "../components/AnalyticsCard";
 import { HexButton } from "../components/HexButton";
-import { Bee } from "../components/sprites/bees";
-import { HiveSprite } from "../components/sprites/Hive";
+import { SpriteBee } from "../components/sprites/SpriteBee";
 
 const HEADER =
   "Using many different scope system prompt and data access small LLMs with an orchestrator LLM for the specific type of prompt for data analytics questions.";
@@ -36,6 +31,7 @@ const EMPTY_LANE: LaneState = {
   startedAt: null,
   finishedAt: null,
   completedRoles: [],
+  cachedRoles: [],
   activeRole: null,
   html: null,
 };
@@ -76,22 +72,31 @@ export function Workspace(): JSX.Element {
     [],
   );
 
+  // Defensively coerce server payload — an older API server (started before the
+  // latest changes) may omit `cachedRoles` or `completedRoles`. Missing fields
+  // would crash the UI when we call .includes on them, so normalize on receipt.
+  const normalizeLane = (lane: LaneState | undefined): LaneState => ({
+    ...EMPTY_LANE,
+    ...(lane ?? {}),
+    completedRoles: lane?.completedRoles ?? [],
+    cachedRoles: lane?.cachedRoles ?? [],
+  });
+
   const onEvent = (e: RunEvent): void => {
-    setBrain(e.brain);
-    setBaseline(e.baseline);
-    setLedger(e.ledger);
+    setBrain(normalizeLane(e.brain));
+    setBaseline(normalizeLane(e.baseline));
+    setLedger(e.ledger ?? []);
     if (e.totals) setTotals(e.totals);
   };
 
   const submit = async (q: string): Promise<void> => {
-    if (runId) return; // a run is already in flight on this workspace
+    if (runId) return;
     setSubmitError(null);
     setQuestion(q);
     try {
       const id = await startRun(q);
       setRunId(id);
       closeRef.current = subscribeRun(id, onEvent, (err) => {
-        // EventSource auto-retries; just surface once.
         setSubmitError(err.message);
       });
     } catch (err) {
@@ -119,10 +124,9 @@ export function Workspace(): JSX.Element {
     totalRoles,
     brain.status === "complete",
   );
-  // The baseline is a single model — it goes straight to full when complete.
   const baselineLevel = useMemo<0 | 1 | 2 | 3 | 4>(() => {
     if (baseline.status === "complete") return 4;
-    if (baseline.status === "running") return 1; // a hint that it's filling
+    if (baseline.status === "running") return 1;
     return 0;
   }, [baseline.status]);
 
@@ -132,21 +136,16 @@ export function Workspace(): JSX.Element {
     <main
       style={{
         position: "relative",
-        minHeight: "100vh",
-        padding: "32px clamp(20px, 4vw, 64px) 64px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 24,
+        height: "100vh",
+        padding: "18px clamp(20px, 3.4vw, 48px) 22px",
+        display: "grid",
+        gridTemplateRows: "auto auto 1fr auto auto",
+        rowGap: 12,
+        overflow: "hidden",
       }}
     >
-      {/* top header */}
-      <header
-        style={{
-          textAlign: "center",
-          maxWidth: 920,
-          margin: "8px auto 8px",
-        }}
-      >
+      {/* top header — tight */}
+      <header style={{ textAlign: "center", maxWidth: 900, margin: "0 auto" }}>
         <motion.div
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -155,15 +154,15 @@ export function Workspace(): JSX.Element {
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            columnGap: 14,
-            marginBottom: 12,
+            columnGap: 12,
+            marginBottom: 4,
           }}
         >
-          <Bee variant={1} pixel={3} active />
+          <SpriteBee role="orchestrator" size={24} active />
           <span
             className="display"
             style={{
-              fontSize: 22,
+              fontSize: 18,
               fontStyle: "italic",
               fontWeight: 400,
               letterSpacing: "0.005em",
@@ -171,18 +170,18 @@ export function Workspace(): JSX.Element {
           >
             The Hive · Workspace
           </span>
-          <Bee variant={3} pixel={3} active />
+          <SpriteBee role="planner" size={24} active />
         </motion.div>
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.25, duration: 0.7 }}
+          transition={{ delay: 0.2, duration: 0.6 }}
           className="muted"
           style={{
             margin: 0,
-            fontSize: 14,
-            lineHeight: 1.55,
-            maxWidth: 760,
+            fontSize: 12.5,
+            lineHeight: 1.45,
+            maxWidth: 720,
             marginLeft: "auto",
             marginRight: "auto",
           }}
@@ -191,51 +190,108 @@ export function Workspace(): JSX.Element {
         </motion.p>
       </header>
 
+      {/* universal Ask bar */}
+      <div
+        style={{
+          maxWidth: 880,
+          margin: "0 auto",
+          width: "100%",
+          borderTop: "1px solid var(--line)",
+          borderBottom: "1px solid var(--line)",
+          padding: "8px 12px",
+        }}
+      >
+        {question ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              columnGap: 14,
+              minHeight: 44,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: 17,
+                color: "var(--bark)",
+                lineHeight: 1.3,
+                flex: 1,
+              }}
+            >
+              “{question}”
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: 12,
+                color: "var(--muted)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {running ? "running both lanes…" : brain.status === "complete" ? "complete" : ""}
+            </div>
+          </div>
+        ) : (
+          <QuestionInput onSubmit={submit} disabled={Boolean(runId)} />
+        )}
+      </div>
+
       {modelsError && (
         <div
           style={{
             border: "1px solid var(--line)",
-            padding: 12,
+            padding: 8,
             borderRadius: 4,
             color: "var(--bark-soft)",
-            fontSize: 13,
+            fontSize: 12,
+            textAlign: "center",
           }}
         >
-          could not load model config from API: {modelsError}
+          could not load model config: {modelsError}
         </div>
       )}
 
-      {/* two-panel grid */}
+      {/* two-panel grid — flex fills available vertical space */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1px 1fr",
+          gridTemplateColumns: "1fr 2px 1fr",
           columnGap: 0,
           alignItems: "stretch",
-          borderTop: "1px solid var(--line)",
-          paddingTop: 28,
+          minHeight: 0,
         }}
       >
         <Panel
           side="left"
           title="Hive Question"
           subtitle={`${brainAgents.length || 6} small models · orchestrated`}
-          question={question}
-          onSubmit={submit}
-          inputDisabled={Boolean(runId)}
         >
-          <BeeSwarm
-            agents={brainAgents}
-            activeRole={brain.activeRole}
-            completedRoles={brain.completedRoles}
-            ledger={ledger}
-            running={brain.status === "running"}
-          />
+          <div
+            style={{
+              minHeight: 140,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <BeeSwarm
+              agents={brainAgents}
+              activeRole={brain.activeRole}
+              completedRoles={brain.completedRoles}
+              cachedRoles={brain.cachedRoles}
+              ledger={ledger}
+              running={brain.status === "running"}
+            />
+          </div>
           <DropProgress
             level={brainLevel}
             ready={brain.status === "complete" && Boolean(brain.html)}
             downloadUrl={runId ? htmlDownloadUrl(runId, "brain") : null}
-            filename={`hive-brain.html`}
+            filename="BRAIN-METHOD.html"
             caption={
               brain.status === "complete"
                 ? "Tap the drop to download your dashboard"
@@ -243,7 +299,7 @@ export function Workspace(): JSX.Element {
                   ? `Working through ${brain.completedRoles.length}/${totalRoles} agents…`
                   : brain.status === "error"
                     ? `error: ${brain.reason ?? "unknown"}`
-                    : "Submit a question to begin."
+                    : "Ask a question above to begin."
             }
           />
         </Panel>
@@ -254,31 +310,49 @@ export function Workspace(): JSX.Element {
           side="right"
           title="Large Language Model Question"
           subtitle={models?.baseline.label ?? "single strong model · end to end"}
-          question={question}
-          onSubmit={submit}
-          inputDisabled={Boolean(runId)}
         >
           <div
             style={{
+              minHeight: 140,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              padding: "8px 0",
-              rowGap: 12,
+              justifyContent: "center",
+              rowGap: 6,
             }}
           >
-            <HiveSprite pixel={6} active={baseline.status === "running"} />
+            <SpriteBee
+              role="solo"
+              size={80}
+              active={baseline.status === "running"}
+              done={baseline.status === "complete"}
+              title="solo bee · single model"
+            />
             <div
               style={{
                 fontFamily: "var(--font-display)",
                 fontStyle: "italic",
-                fontSize: 14,
+                fontSize: 12,
                 color: "var(--bark)",
                 textAlign: "center",
               }}
             >
               {models?.baseline.label ?? "—"}
             </div>
+            {models?.baseline.params && (
+              <div
+                style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  color: "var(--bark)",
+                  fontFeatureSettings: '"tnum" 1',
+                }}
+              >
+                {models.baseline.params.toUpperCase()} PARAMS
+              </div>
+            )}
             <div
               style={{
                 fontFamily: "var(--font-body)",
@@ -295,7 +369,7 @@ export function Workspace(): JSX.Element {
             level={baselineLevel}
             ready={baseline.status === "complete" && Boolean(baseline.html)}
             downloadUrl={runId ? htmlDownloadUrl(runId, "baseline") : null}
-            filename={`hive-baseline.html`}
+            filename="LLM-METHOD.html"
             caption={
               baseline.status === "complete"
                 ? "Tap the drop to download your dashboard"
@@ -303,7 +377,7 @@ export function Workspace(): JSX.Element {
                   ? "The single model is working…"
                   : baseline.status === "error"
                     ? `error: ${baseline.reason ?? "unknown"}`
-                    : "Submit a question to begin."
+                    : "Ask a question above to begin."
             }
           />
         </Panel>
@@ -313,61 +387,29 @@ export function Workspace(): JSX.Element {
       <AnalyticsCard totals={totals} />
 
       {/* reset */}
-      <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
-        <HexButton onClick={reset} size="md" variant="outline" disabled={!runId && !question}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          columnGap: 16,
+        }}
+      >
+        <HexButton onClick={reset} size="sm" variant="outline" disabled={!runId && !question}>
           Reset
         </HexButton>
+        {submitError && (
+          <span
+            style={{
+              fontSize: 12,
+              color: "var(--bark-soft)",
+              fontStyle: "italic",
+            }}
+          >
+            {submitError}
+          </span>
+        )}
       </div>
-
-      {submitError && (
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: 13,
-            color: "var(--bark-soft)",
-            fontStyle: "italic",
-          }}
-        >
-          {submitError}
-        </div>
-      )}
-
-      {/* tiny ledger trail (debug-quiet, helpful) */}
-      {running && ledger.length > 0 && (
-        <details
-          style={{
-            margin: "8px auto 0",
-            maxWidth: 720,
-            fontSize: 12,
-            color: "var(--muted)",
-            fontFamily: "var(--font-body)",
-          }}
-        >
-          <summary style={{ cursor: "pointer", fontStyle: "italic" }}>
-            ledger · {ledger.length} call{ledger.length === 1 ? "" : "s"}
-          </summary>
-          <ul style={{ listStyle: "none", padding: 0, margin: "8px 0" }}>
-            {ledger.slice(-8).map((e, i) => (
-              <li
-                key={i}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "70px 1fr auto",
-                  columnGap: 12,
-                  padding: "2px 0",
-                  borderBottom: "1px dotted var(--line)",
-                }}
-              >
-                <span style={{ color: e.lane === "brain" ? "var(--honey-deep)" : "var(--bark-soft)" }}>
-                  {e.lane}
-                </span>
-                <span>{labelForRole(e.role)}</span>
-                <span style={{ fontFeatureSettings: '"tnum" 1' }}>{usd(e.costUsd)}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
     </main>
   );
 }
@@ -378,28 +420,28 @@ interface PanelProps {
   side: "left" | "right";
   title: string;
   subtitle: string;
-  question: string;
-  onSubmit: (q: string) => void;
-  inputDisabled: boolean;
   children: React.ReactNode;
 }
 
-function Panel({ side, title, subtitle, question, onSubmit, inputDisabled, children }: PanelProps): JSX.Element {
+function Panel({ side, title, subtitle, children }: PanelProps): JSX.Element {
   return (
     <section
       style={{
-        padding: `8px ${side === "left" ? "32px 8px 0" : "0 8px 32px"}`,
-        display: "flex",
-        flexDirection: "column",
-        rowGap: 18,
+        padding: side === "left" ? "0 24px 0 0" : "0 0 0 24px",
+        display: "grid",
+        // header → top content (1fr) → drop (auto): the 1fr row absorbs slack
+        // so the drop row aligns horizontally with the other panel's drop.
+        gridTemplateRows: "auto 1fr auto",
+        rowGap: 10,
+        minHeight: 0,
       }}
     >
-      <header style={{ display: "grid", rowGap: 4 }}>
+      <header style={{ display: "grid", rowGap: 2 }}>
         <h2
           className="display"
           style={{
             margin: 0,
-            fontSize: 30,
+            fontSize: 22,
             fontWeight: 400,
             letterSpacing: "-0.012em",
           }}
@@ -411,30 +453,12 @@ function Panel({ side, title, subtitle, question, onSubmit, inputDisabled, child
           style={{
             fontFamily: "var(--font-display)",
             fontStyle: "italic",
-            fontSize: 13,
+            fontSize: 12,
           }}
         >
           {subtitle}
         </div>
       </header>
-      {question ? (
-        <div
-          style={{
-            fontFamily: "var(--font-display)",
-            fontStyle: "italic",
-            fontSize: 19,
-            color: "var(--bark)",
-            paddingBottom: 12,
-            borderBottom: "1px solid var(--line)",
-            lineHeight: 1.35,
-            minHeight: 56,
-          }}
-        >
-          “{question}”
-        </div>
-      ) : (
-        <QuestionInput onSubmit={onSubmit} disabled={inputDisabled} />
-      )}
       {children}
     </section>
   );

@@ -7,6 +7,7 @@ export interface BrainAgent {
   role: string; // ModelRole — kept loose so the UI doesn't depend on the backend enum
   slug: string;
   label: string;
+  params: string | null; // e.g. "30B" — null when unknown
 }
 
 export interface BaselineAgent extends BrainAgent {}
@@ -41,6 +42,7 @@ export interface LaneState {
   startedAt: number | null;
   finishedAt: number | null;
   completedRoles: string[];
+  cachedRoles: string[];
   activeRole: string | null;
   html: string | null;
   reason?: string;
@@ -92,4 +94,10 @@ export function subscribeRun(
 
 export function htmlDownloadUrl(runId: string, lane: LaneId): string {
   return `/api/run/${runId}/html/${lane}`;
+}
+
+export async function fetchThesis(): Promise<string> {
+  const r = await fetch("/api/thesis");
+  if (!r.ok) throw new Error(`/api/thesis failed: ${r.status}`);
+  return r.text();
 }

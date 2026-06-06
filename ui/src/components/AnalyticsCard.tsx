@@ -19,7 +19,7 @@ function metric(
         style={{
           fontFamily: "var(--font-display)",
           fontStyle: "italic",
-          fontSize: 13,
+          fontSize: 11,
           color: "var(--muted)",
           letterSpacing: "0.02em",
         }}
@@ -29,7 +29,7 @@ function metric(
       <div
         style={{
           fontFamily: "var(--font-display)",
-          fontSize: 26,
+          fontSize: 20,
           fontWeight: 500,
           fontVariationSettings: '"opsz" 144',
           color: emphasis === "honey" ? "var(--honey-deep)" : "var(--bark)",
@@ -54,15 +54,15 @@ export function AnalyticsCard({ totals }: AnalyticsCardProps): JSX.Element {
   return (
     <section
       style={{
-        marginTop: 32,
         border: "1px solid var(--line)",
-        background: "rgba(255,253,247,0.55)",
+        background: "rgba(255,253,247,0.6)",
         backdropFilter: "saturate(1.05)",
         borderRadius: 6,
-        padding: "28px 36px",
+        padding: "14px 22px",
         display: "grid",
         gridTemplateColumns: "1fr 1fr 1.1fr",
-        columnGap: 32,
+        columnGap: 24,
+        alignItems: "center",
       }}
     >
       <div>
@@ -70,9 +70,9 @@ export function AnalyticsCard({ totals }: AnalyticsCardProps): JSX.Element {
           style={{
             fontFamily: "var(--font-display)",
             fontStyle: "italic",
-            fontSize: 14,
+            fontSize: 12,
             color: "var(--bark-soft)",
-            marginBottom: 16,
+            marginBottom: 8,
             letterSpacing: "0.02em",
           }}
         >
@@ -82,7 +82,7 @@ export function AnalyticsCard({ totals }: AnalyticsCardProps): JSX.Element {
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            rowGap: 14,
+            rowGap: 8,
             columnGap: 16,
           }}
         >
@@ -98,9 +98,9 @@ export function AnalyticsCard({ totals }: AnalyticsCardProps): JSX.Element {
           style={{
             fontFamily: "var(--font-display)",
             fontStyle: "italic",
-            fontSize: 14,
+            fontSize: 12,
             color: "var(--bark-soft)",
-            marginBottom: 16,
+            marginBottom: 8,
             letterSpacing: "0.02em",
           }}
         >
@@ -110,7 +110,7 @@ export function AnalyticsCard({ totals }: AnalyticsCardProps): JSX.Element {
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            rowGap: 14,
+            rowGap: 8,
             columnGap: 16,
           }}
         >
@@ -124,7 +124,7 @@ export function AnalyticsCard({ totals }: AnalyticsCardProps): JSX.Element {
       <div
         style={{
           borderLeft: "1px solid var(--line)",
-          paddingLeft: 28,
+          paddingLeft: 20,
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
@@ -134,7 +134,7 @@ export function AnalyticsCard({ totals }: AnalyticsCardProps): JSX.Element {
           style={{
             fontFamily: "var(--font-display)",
             fontStyle: "italic",
-            fontSize: 14,
+            fontSize: 12,
             color: "var(--bark-soft)",
             letterSpacing: "0.02em",
           }}
@@ -144,7 +144,7 @@ export function AnalyticsCard({ totals }: AnalyticsCardProps): JSX.Element {
         <div
           style={{
             fontFamily: "var(--font-display)",
-            fontSize: 72,
+            fontSize: 52,
             lineHeight: 1.02,
             fontWeight: 400,
             fontVariationSettings: '"opsz" 144',
@@ -159,9 +159,9 @@ export function AnalyticsCard({ totals }: AnalyticsCardProps): JSX.Element {
         <div
           style={{
             fontFamily: "var(--font-body)",
-            fontSize: 13,
+            fontSize: 11.5,
             color: "var(--muted)",
-            marginTop: 4,
+            marginTop: 2,
           }}
         >
           {baseline.costUsd > 0

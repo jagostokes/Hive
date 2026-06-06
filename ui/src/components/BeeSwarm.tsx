@@ -2,13 +2,14 @@
 // shows its live model slug + accumulating USD. Active bees flutter; completed
 // bees go still and crisp; pending bees are dimmed.
 import type { BrainAgent, LedgerEntry } from "../lib/api";
-import { Bee } from "./sprites/bees";
-import { labelForRole, usd, variantForRole } from "../lib/agents";
+import { SpriteBee } from "./sprites/SpriteBee";
+import { labelForRole, spriteForRole, usd } from "../lib/agents";
 
 interface BeeSwarmProps {
   agents: BrainAgent[];
   activeRole: string | null;
   completedRoles: string[];
+  cachedRoles: string[];
   ledger: LedgerEntry[];
   running: boolean;
 }
@@ -22,21 +23,39 @@ function costForRole(ledger: LedgerEntry[], role: string): number {
 export function BeeSwarm({
   agents,
   activeRole,
-  completedRoles,
+  completedRoles = [],
+  cachedRoles = [],
   ledger,
   running,
 }: BeeSwarmProps): JSX.Element {
+  if (agents.length === 0) {
+    return (
+      <div
+        style={{
+          fontFamily: "var(--font-display)",
+          fontStyle: "italic",
+          fontSize: 12,
+          color: "var(--muted)",
+          textAlign: "center",
+          padding: "16px 0",
+        }}
+      >
+        loading agent roster…
+      </div>
+    );
+  }
   return (
     <div
       style={{
         display: "grid",
         gridTemplateColumns: `repeat(${agents.length}, 1fr)`,
-        gap: 6,
-        padding: "8px 0",
+        gap: 4,
+        padding: "4px 0",
       }}
     >
       {agents.map((agent, i) => {
-        const done = completedRoles.includes(agent.role);
+        const cached = cachedRoles.includes(agent.role);
+        const done = completedRoles.includes(agent.role) || cached;
         const active = running && activeRole === agent.role;
         const idle = !active && !done;
         const cost = costForRole(ledger, agent.role);
@@ -47,23 +66,23 @@ export function BeeSwarm({
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              rowGap: 6,
+              rowGap: 3,
               minWidth: 0,
             }}
           >
             <div
               style={{
-                width: 88,
-                height: 64,
+                width: 64,
+                height: 48,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 position: "relative",
               }}
             >
-              <Bee
-                variant={variantForRole(agent.role, ((i % 6) + 1) as 1 | 2 | 3 | 4 | 5 | 6)}
-                pixel={4}
+              <SpriteBee
+                role={spriteForRole(agent.role, i)}
+                size={40}
                 active={active}
                 done={done && !active}
                 title={labelForRole(agent.role)}
@@ -87,11 +106,11 @@ export function BeeSwarm({
               style={{
                 fontFamily: "var(--font-display)",
                 fontStyle: "italic",
-                fontSize: 12,
+                fontSize: 11,
                 color: idle ? "var(--muted)" : "var(--bark)",
                 textAlign: "center",
                 lineHeight: 1.15,
-                minHeight: 14,
+                minHeight: 13,
               }}
             >
               {labelForRole(agent.role)}
@@ -99,27 +118,55 @@ export function BeeSwarm({
             <div
               style={{
                 fontFamily: "var(--font-body)",
-                fontSize: 10.5,
+                fontSize: 9.5,
                 color: "var(--muted)",
                 textAlign: "center",
-                lineHeight: 1.2,
+                lineHeight: 1.25,
                 wordBreak: "break-word",
-                maxWidth: 110,
-                minHeight: 24,
+                maxWidth: 100,
+                minHeight: 38,
                 fontFeatureSettings: '"tnum" 1',
               }}
               title={agent.slug}
             >
               {agent.label}
+              {agent.params && (
+                <>
+                  <br />
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: "var(--bark)",
+                      letterSpacing: "0.04em",
+                      fontFeatureSettings: '"tnum" 1',
+                    }}
+                  >
+                    {agent.params.toUpperCase()} PARAMS
+                  </span>
+                </>
+              )}
               <br />
-              <span
-                style={{
-                  color: cost > 0 ? "var(--bark-soft)" : "var(--muted)",
-                  fontWeight: 500,
-                }}
-              >
-                {usd(cost)}
-              </span>
+              {cached ? (
+                <span
+                  style={{
+                    color: "var(--honey-deep)",
+                    fontStyle: "italic",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 500,
+                  }}
+                >
+                  stepped cached
+                </span>
+              ) : (
+                <span
+                  style={{
+                    color: cost > 0 ? "var(--bark-soft)" : "var(--muted)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {usd(cost)}
+                </span>
+              )}
             </div>
           </div>
         );

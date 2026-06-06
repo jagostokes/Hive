@@ -30,7 +30,7 @@ export function DropProgress({
         transition: "filter 320ms ease",
       }}
     >
-      <HoneyDrop level={level} pixel={7} />
+      <HoneyDrop level={level} pixel={5} />
     </motion.div>
   );
 
@@ -40,8 +40,8 @@ export function DropProgress({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        rowGap: 10,
-        padding: "8px 0",
+        rowGap: 6,
+        padding: "4px 0",
       }}
     >
       {ready && downloadUrl ? (
@@ -60,10 +60,10 @@ export function DropProgress({
         style={{
           fontFamily: "var(--font-display)",
           fontStyle: "italic",
-          fontSize: 13,
+          fontSize: 11.5,
           color: "var(--muted)",
           textAlign: "center",
-          maxWidth: 260,
+          maxWidth: 240,
           lineHeight: 1.35,
         }}
       >

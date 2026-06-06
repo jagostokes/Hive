@@ -1,15 +1,17 @@
-// Map each brain agent role to a bee variant + a human label. The role list is
-// not hardcoded — we receive it from /api/models — but we DO have a stable map
-// from known role ids to variant numbers so the swarm is consistent across runs.
-import type { BeeVariant } from "../components/sprites/bees";
+// Map each brain agent role to a bee sprite (from hive-assets) + a human label.
+// The role list is not hardcoded — we receive it from /api/models — but we DO
+// have a stable map from known role ids to bee sprites so the swarm is
+// consistent across runs.
+import type { BeeRole } from "../components/sprites/SpriteBee";
 
-export const ROLE_TO_VARIANT: Record<string, BeeVariant> = {
-  planner: 1,
-  sqlGen: 2,
-  insight: 3,
-  dashboardPlan: 4,
-  codeGen: 5,
-  codeEdit: 6,
+export const ROLE_TO_SPRITE: Record<string, BeeRole> = {
+  // Thematic mapping to the colored swarm bees in hive-assets/bees/.
+  planner: "planner", // blue · planning
+  sqlGen: "fetcher", // gold · fetches data via SQL
+  insight: "charter", // orange · charts insights from rows
+  dashboardPlan: "orchestrator", // amber · coordinates dashboard layout
+  codeGen: "writer", // red · writes the dashboard code
+  codeEdit: "qa", // green · QA / repairs broken code
 };
 
 export const ROLE_LABEL: Record<string, string> = {
@@ -25,8 +27,17 @@ export const ROLE_LABEL: Record<string, string> = {
   embedding: "Embedding",
 };
 
-export function variantForRole(role: string, fallback: BeeVariant = 1): BeeVariant {
-  return ROLE_TO_VARIANT[role] ?? fallback;
+const SPRITE_CYCLE: BeeRole[] = [
+  "planner",
+  "fetcher",
+  "charter",
+  "orchestrator",
+  "writer",
+  "qa",
+];
+
+export function spriteForRole(role: string, index = 0): BeeRole {
+  return ROLE_TO_SPRITE[role] ?? SPRITE_CYCLE[index % SPRITE_CYCLE.length];
 }
 
 export function labelForRole(role: string): string {

@@ -14,6 +14,11 @@ export interface LaneState {
   finishedAt: number | null;
   /** Roles that have produced at least one ledger entry (i.e. completed at least once). */
   completedRoles: string[];
+  /** Roles that were SKIPPED because cache served the result (full-skip only,
+   *  not "cache-adapted" which still calls the model). Populated after the
+   *  brain run finishes. The UI treats these as "ran" (full color) and shows a
+   *  "stepped cached" subtitle. */
+  cachedRoles: string[];
   /** Currently-running roles (rough heuristic: most recent ledger entry's role). */
   activeRole: string | null;
   html: string | null;
@@ -35,6 +40,7 @@ const emptyLane = (): LaneState => ({
   startedAt: null,
   finishedAt: null,
   completedRoles: [],
+  cachedRoles: [],
   activeRole: null,
   html: null,
 });
