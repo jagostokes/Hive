@@ -18,7 +18,7 @@ const Q = "What is the average order value for each region, what percentage of t
 
 async function main(): Promise<void> {
   const context = createContextProvider(raw);
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= 3; i++) {
     const r = await runPlanner(Q, { context });
     console.log(`\n=== planner run ${i}: ok=${r.ok} ===`);
     if (r.ok) {

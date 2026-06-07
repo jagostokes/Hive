@@ -146,27 +146,14 @@ export function BeeSwarm({
                 </>
               )}
               <br />
-              {cached ? (
-                <span
-                  style={{
-                    color: "var(--honey-deep)",
-                    fontStyle: "italic",
-                    fontFamily: "var(--font-display)",
-                    fontWeight: 500,
-                  }}
-                >
-                  stepped cached
-                </span>
-              ) : (
-                <span
-                  style={{
-                    color: cost > 0 ? "var(--bark-soft)" : "var(--muted)",
-                    fontWeight: 500,
-                  }}
-                >
-                  {usd(cost)}
-                </span>
-              )}
+              <span
+                style={{
+                  color: cost > 0 ? "var(--bark-soft)" : "var(--muted)",
+                  fontWeight: 500,
+                }}
+              >
+                {usd(cost)}
+              </span>
             </div>
           </div>
         );
