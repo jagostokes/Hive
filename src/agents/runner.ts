@@ -127,37 +127,40 @@ export async function runAgent<TOutput, TData>(
       const userMessage = spec.buildUserMessage(feedback);
       const messages = buildMessages(spec, userMessage);
 
-      const { text, finishReason } = await callModel({
-        role,
-        lane,
-        messages,
-        ...(spec.temperature !== undefined ? { temperature: spec.temperature } : {}),
-        ...(spec.maxTokens !== undefined ? { maxTokens: spec.maxTokens } : {}),
-      });
-
-      // Parsing or verification throwing (e.g. malformed JSON) is a RECOVERABLE
-      // verified failure: record it, feed the reason back, and try again rather
-      // than crashing the run.
+      // The model call, parsing, AND verification are all RECOVERABLE: a provider
+      // error (e.g. a transient "400 Provider returned error" or a timeout), an
+      // empty/truncated completion, or malformed output is recorded as a failed
+      // attempt and fed back, so we retry/escalate rather than crashing the whole
+      // lane on one bad response.
+      let text = "";
       let output: TOutput | undefined;
       let outcome: VerifyOutcome<TData>;
-      if (!text.trim()) {
-        // Empty completion — almost always a truncated reasoning model (the hidden
-        // trace ate the token budget). Report it clearly rather than letting parse
-        // raise a misleading "no JSON found".
-        outcome = {
-          ok: false,
-          reason:
-            finishReason === "length"
-              ? "model returned empty output (truncated: completion budget too small for this model's reasoning — raise maxTokens)"
-              : "model returned empty output",
-        };
-      } else {
-        try {
+      try {
+        const res = await callModel({
+          role,
+          lane,
+          messages,
+          ...(spec.temperature !== undefined ? { temperature: spec.temperature } : {}),
+          ...(spec.maxTokens !== undefined ? { maxTokens: spec.maxTokens } : {}),
+        });
+        text = res.text;
+        if (!text.trim()) {
+          // Empty completion — almost always a truncated reasoning model (the hidden
+          // trace ate the token budget). Report it clearly rather than letting parse
+          // raise a misleading "no JSON found".
+          outcome = {
+            ok: false,
+            reason:
+              res.finishReason === "length"
+                ? "model returned empty output (truncated: completion budget too small for this model's reasoning — raise maxTokens)"
+                : "model returned empty output",
+          };
+        } else {
           output = spec.parse(text);
           outcome = await spec.verify(output);
-        } catch (err) {
-          outcome = { ok: false, reason: err instanceof Error ? err.message : String(err) };
         }
+      } catch (err) {
+        outcome = { ok: false, reason: err instanceof Error ? err.message : String(err) };
       }
 
       const model = MODELS[role].slug;

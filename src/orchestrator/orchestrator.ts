@@ -83,6 +83,28 @@ export interface DashboardView {
   charts: DashboardViewChart[];
 }
 
+// Cap the rows embedded into the dashboard (codeGen prompt AND the runtime
+// DASHBOARD_DATA global). A query like "revenue for EACH product" can return tens
+// of thousands of rows; serializing all of them produced a multi-MB prompt that
+// overflowed the codeGen model's context and came back as "Provider returned
+// error". A chart can't legibly show thousands of points anyway, so we keep the
+// top N by the plan's measure (falling back to the first N).
+const MAX_CHART_ROWS = 200;
+
+function capChartRows(plan: unknown, rows: ResultRow[]): ResultRow[] {
+  if (rows.length <= MAX_CHART_ROWS) return rows;
+  const yKey =
+    plan && typeof plan === "object" && typeof (plan as { y?: unknown }).y === "string"
+      ? (plan as { y: string }).y
+      : null;
+  if (yKey && rows.every((r) => r[yKey] === null || Number.isFinite(Number(r[yKey])))) {
+    return [...rows]
+      .sort((a, b) => Number(b[yKey] ?? 0) - Number(a[yKey] ?? 0))
+      .slice(0, MAX_CHART_ROWS);
+  }
+  return rows.slice(0, MAX_CHART_ROWS);
+}
+
 /** Translate the internal spec (rows under `data`) into the render contract (rows under `rows`). */
 function toDashboardView(spec: DashboardSpec): DashboardView {
   return {
@@ -91,7 +113,7 @@ function toDashboardView(spec: DashboardSpec): DashboardView {
       id: c.id,
       question: c.question,
       plan: c.plan,
-      rows: c.data,
+      rows: capChartRows(c.plan, c.data),
       ...(c.insight ? { insight: c.insight } : {}),
     })),
   };
