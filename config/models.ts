@@ -34,10 +34,10 @@ export const MODELS: Record<ModelRole, ModelSpec> = {
   // separately by the cache/embedding path. Output tokens are not billed.
   embedding: { slug: "openai/text-embedding-3-small", inputPerMillion: 0.02, outputPerMillion: 0 },
   planner: { slug: "deepseek/deepseek-v4-pro", inputPerMillion: 0.43, outputPerMillion: 0.87 },
-  sqlGen: { slug: "qwen/qwen3-coder-30b-a3b-instruct", inputPerMillion: 0.07, outputPerMillion: 0.27 },
+  sqlGen: { slug: "qwen/qwen3-coder-plus", inputPerMillion: 0.65, outputPerMillion: 3.3 },
   sqlEscalation: { slug: "qwen/qwen3-coder-plus", inputPerMillion: 0.65, outputPerMillion: 3.3 },
   insight: { slug: "deepseek/deepseek-v4-flash", inputPerMillion: 0.1, outputPerMillion: 0.2 },
-  dashboardPlan: { slug: "google/gemini-2.5-flash-lite", inputPerMillion: 0.1, outputPerMillion: 0.4 },
+  dashboardPlan: { slug: "google/gemini-2.5-flash", inputPerMillion: 0.3, outputPerMillion: 2.5 },
   // Dashboard code quality matters a lot for the demo, so codeGen runs on the
   // stronger coder (same slug as sqlEscalation). Still ~8x cheaper on output than
   // the baseline flagship, so the brain lane keeps its large cost advantage.

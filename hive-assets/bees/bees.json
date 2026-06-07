@@ -1,0 +1,84 @@
+{
+  "$comment": "Sprite manifest for Hive agent bees. Each strip is a vertical sheet: frames stacked top-to-bottom, frameWidth x frameHeight per frame. Bee faces 'up' (north); rotate toward travel direction in-engine. Render nearest-neighbor (no smoothing).",
+  "frameCount": 4,
+  "fps": 12,
+  "loop": true,
+  "facing": "up",
+  "scaling": "nearest",
+  "base": {
+    "file": "bee_spirtesheet.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "color": "amber",
+    "note": "Original base sheet. Source of all recolors. Keep for reference."
+  },
+  "solo": {
+    "role": "solo",
+    "hive": "solo",
+    "file": "bee-solo.png",
+    "frameWidth": 64,
+    "frameHeight": 64,
+    "nativeScale": 4,
+    "color": "gray/silver",
+    "label": "Solo model",
+    "note": "The single expensive model. One large lone bee, works every cell serially. Pre-rendered at 4x; do not scale further."
+  },
+  "swarm": [
+    {
+      "role": "orchestrator",
+      "hive": "swarm",
+      "file": "bee-orchestrator.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "nativeScale": 2,
+      "color": "amber",
+      "label": "Orchestrator",
+      "note": "Coordinates the swarm. The lead 'queen' bee, pre-rendered at 2x; do not scale again in-engine."
+    },
+    {
+      "role": "fetcher",
+      "hive": "swarm",
+      "file": "bee-fetcher.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "color": "yellow/amber-gold",
+      "label": "Fetcher"
+    },
+    {
+      "role": "charter",
+      "hive": "swarm",
+      "file": "bee-charter.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "color": "orange",
+      "label": "Charter"
+    },
+    {
+      "role": "qa",
+      "hive": "swarm",
+      "file": "bee-qa.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "color": "green",
+      "label": "QA"
+    },
+    {
+      "role": "planner",
+      "hive": "swarm",
+      "file": "bee-planner.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "color": "blue",
+      "label": "Planner"
+    },
+    {
+      "role": "writer",
+      "hive": "swarm",
+      "file": "bee-writer.png",
+      "frameWidth": 16,
+      "frameHeight": 16,
+      "color": "red",
+      "label": "Writer"
+    }
+  ]
+}

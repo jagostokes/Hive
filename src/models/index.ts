@@ -78,9 +78,18 @@ function getClient(): OpenAI {
       "OPENROUTER_API_KEY is not set. Copy .env.example to .env and fill it in.",
     );
   }
+  // Bound each request and auto-retry. OpenRouter occasionally routes a call to
+  // a slow/queued provider instance that hangs for minutes (observed: a 149s
+  // codeGen call). `timeout` aborts such a stalled request; `maxRetries` then
+  // re-issues it, usually landing on a faster provider. Override the ceiling with
+  // HIVE_MODEL_TIMEOUT_MS (e.g. raise it if a legitimately long generation needs
+  // more room than the default).
+  const timeout = Number(process.env.HIVE_MODEL_TIMEOUT_MS ?? 90_000);
   client = new OpenAI({
     apiKey,
     baseURL: "https://openrouter.ai/api/v1",
+    timeout,
+    maxRetries: 2,
   });
   return client;
 }

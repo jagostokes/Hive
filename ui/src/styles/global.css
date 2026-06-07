@@ -1,0 +1,178 @@
+:root {
+  /* warm beehive palette — one accent, no gradient soup */
+  --wax: #fbf6ea;
+  --wax-soft: #f5edda;
+  --comb: #ebdfc6;
+  --honey: #e8a22a;
+  --honey-deep: #c97a12;
+  --honey-glow: rgba(232, 162, 42, 0.18);
+  --bark: #2b2017;
+  --bark-soft: #463526;
+  --muted: #8a7a63;
+  --line: #dfd3bc;
+
+  /* type */
+  --font-display: "Fraunces", "Cormorant Garamond", "Iowan Old Style", serif;
+  --font-body: "Hanken Grotesk", "Helvetica Neue", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 16px;
+  color: var(--bark);
+  background-color: var(--wax);
+  /* Faint honeycomb watermark — a single tiled SVG painted at low opacity.
+     Each unit is a flat-topped hexagon outline. This is the warmth/texture cue
+     for the whole product; deliberately at the edge of visibility. */
+  /* Interlocking honeycomb. Tile is the fundamental domain (2a × 3r) for
+     pointy-top hex tiling: the middle hex sits fully inside; the four corner
+     hexes are drawn in full but clipped by the viewBox so each tile carries the
+     edges that meet its neighbors. Tiles repeat seamlessly into a true comb. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 42' width='24' height='42'><g fill='none' stroke='%23cebd96' stroke-width='0.8' opacity='0.34'><polygon points='12,7 24,14 24,28 12,35 0,28 0,14'/><polygon points='0,-14 12,-7 12,7 0,14 -12,7 -12,-7'/><polygon points='24,-14 36,-7 36,7 24,14 12,7 12,-7'/><polygon points='0,28 12,35 12,49 0,56 -12,49 -12,35'/><polygon points='24,28 36,35 36,49 24,56 12,49 12,35'/></g></svg>");
+  background-size: 24px 42px;
+  background-position: center top;
+  background-repeat: repeat;
+  background-attachment: fixed;
+}
+
+/* Subtle wax sheen on top of the watermark so it never feels gridded. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% -10%, rgba(255, 240, 200, 0.55), transparent 60%),
+    radial-gradient(ellipse at 50% 110%, rgba(232, 162, 42, 0.05), transparent 55%);
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Pixel-perfect rendering for every sprite. */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* shared display-text rules */
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-variation-settings: "opsz" 110;
+  letter-spacing: -0.018em;
+  color: var(--bark);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Selection: amber on cream. */
+::selection {
+  background: var(--honey);
+  color: var(--wax);
+}
+
+/* hex-dotted vertical divider used between workspace panels */
+.hex-divider {
+  width: 2px;
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 3px,
+    var(--bark-soft) 3px,
+    var(--bark-soft) 11px,
+    transparent 11px,
+    transparent 14px
+  );
+  background-size: 2px 14px;
+  opacity: 0.55;
+}
+
+/* keyframes used across components */
+@keyframes hive-flutter {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-3px) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-1px) rotate(1deg);
+  }
+  75% {
+    transform: translateY(-4px) rotate(-1deg);
+  }
+}
+
+@keyframes hive-drift {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* Sprite-strip animation: walks background-position-y from 0 to --sprite-end-y
+   in N steps. Each consumer sets --sprite-end-y to -(stripHeight - frameHeight)
+   and chooses a duration. */
+@keyframes sprite-strip {
+  from {
+    background-position-y: 0;
+  }
+  to {
+    background-position-y: var(--sprite-end-y);
+  }
+}
+
+@keyframes hive-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--honey-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
