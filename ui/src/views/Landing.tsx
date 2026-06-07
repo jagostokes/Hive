@@ -9,6 +9,7 @@ import { HoneyDrop } from "../components/sprites/HoneyDrop";
 
 interface LandingProps {
   onEnter: () => void;
+  onReadThesis: () => void;
 }
 
 const FADE_UP = {
@@ -16,7 +17,7 @@ const FADE_UP = {
   animate: { opacity: 1, y: 0 },
 };
 
-export function Landing({ onEnter }: LandingProps): JSX.Element {
+export function Landing({ onEnter, onReadThesis }: LandingProps): JSX.Element {
   return (
     <main
       style={{
@@ -109,10 +110,10 @@ export function Landing({ onEnter }: LandingProps): JSX.Element {
           specific prompt structure.
         </motion.p>
 
-        <motion.a
+        <motion.button
           {...FADE_UP}
           transition={{ delay: 0.8, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          href="#"
+          onClick={onReadThesis}
           style={{
             fontFamily: "var(--font-display)",
             fontStyle: "italic",
@@ -124,7 +125,7 @@ export function Landing({ onEnter }: LandingProps): JSX.Element {
           }}
         >
           read the thesis &nbsp;→
-        </motion.a>
+        </motion.button>
 
         <motion.div
           {...FADE_UP}

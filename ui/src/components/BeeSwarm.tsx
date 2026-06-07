@@ -72,8 +72,8 @@ export function BeeSwarm({
           >
             <div
               style={{
-                width: 64,
-                height: 48,
+                width: 72,
+                height: 56,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -82,7 +82,7 @@ export function BeeSwarm({
             >
               <SpriteBee
                 role={spriteForRole(agent.role, i)}
-                size={40}
+                size={48}
                 active={active}
                 done={done && !active}
                 title={labelForRole(agent.role)}
@@ -106,11 +106,11 @@ export function BeeSwarm({
               style={{
                 fontFamily: "var(--font-display)",
                 fontStyle: "italic",
-                fontSize: 11,
+                fontSize: 12.5,
                 color: idle ? "var(--muted)" : "var(--bark)",
                 textAlign: "center",
                 lineHeight: 1.15,
-                minHeight: 13,
+                minHeight: 15,
               }}
             >
               {labelForRole(agent.role)}
@@ -118,13 +118,13 @@ export function BeeSwarm({
             <div
               style={{
                 fontFamily: "var(--font-body)",
-                fontSize: 9.5,
+                fontSize: 11,
                 color: "var(--muted)",
                 textAlign: "center",
-                lineHeight: 1.25,
+                lineHeight: 1.3,
                 wordBreak: "break-word",
-                maxWidth: 100,
-                minHeight: 38,
+                maxWidth: 120,
+                minHeight: 44,
                 fontFeatureSettings: '"tnum" 1',
               }}
               title={agent.slug}

@@ -38,8 +38,12 @@ body {
   /* Faint honeycomb watermark — a single tiled SVG painted at low opacity.
      Each unit is a flat-topped hexagon outline. This is the warmth/texture cue
      for the whole product; deliberately at the edge of visibility. */
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 42 48' width='42' height='48'><g fill='none' stroke='%23c4b489' stroke-width='0.9' opacity='0.45'><polygon points='21,1 40,12 40,36 21,47 2,36 2,12'/></g></svg>");
-  background-size: 42px 48px;
+  /* Interlocking honeycomb. Tile is the fundamental domain (2a × 3r) for
+     pointy-top hex tiling: the middle hex sits fully inside; the four corner
+     hexes are drawn in full but clipped by the viewBox so each tile carries the
+     edges that meet its neighbors. Tiles repeat seamlessly into a true comb. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 42' width='24' height='42'><g fill='none' stroke='%23cebd96' stroke-width='0.8' opacity='0.34'><polygon points='12,7 24,14 24,28 12,35 0,28 0,14'/><polygon points='0,-14 12,-7 12,7 0,14 -12,7 -12,-7'/><polygon points='24,-14 36,-7 36,7 24,14 12,7 12,-7'/><polygon points='0,28 12,35 12,49 0,56 -12,49 -12,35'/><polygon points='24,28 36,35 36,49 24,56 12,49 12,35'/></g></svg>");
+  background-size: 24px 42px;
   background-position: center top;
   background-repeat: repeat;
   background-attachment: fixed;

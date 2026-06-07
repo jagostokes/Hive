@@ -17,9 +17,25 @@ const SYSTEM_PROMPT =
   "Rules: use EXACT table and column names as given (never invent or guess names); " +
   "write valid PostgreSQL; aggregate/group as needed; if the question has multiple " +
   "parts, answer the single most important part with ONE query (do not emit multiple " +
-  "statements). Prefer a query that returns a small, chart-ready result set " +
-  "(grouped rows or a single value), not raw rows. Return SQL only — no prose, no " +
-  "code fences.";
+  "statements). " +
+  // --- Output-shape amendment (cost + chart quality) ---
+  // The rows this query returns are passed on to (a) a downstream insight model " +
+  // that writes a one-sentence takeaway and (b) a chart renderer. Both want a " +
+  // SHORT, AGGREGATED, CHART-READY result, not a raw row dump. The cheap " +
+  // insight model is billed per token of the data we hand it, so a query that " +
+  // returns 10k+ rows can cost $0.05+ per call. Stay small and shaped:
+  "Output shape requirements: " +
+  "1) Always AGGREGATE — use GROUP BY, COUNT/SUM/AVG/MIN/MAX, or return a single " +
+  "scalar. Never emit a raw row dump. " +
+  "2) Hard cap at ~100 rows. For trend/time-series questions choose a granularity " +
+  "(day/week/month) that keeps the bucket count under ~50; for breakdowns/top-N " +
+  "use ORDER BY + LIMIT. " +
+  "3) Return only the 2–4 columns needed to chart the answer (e.g. one label/" +
+  "bucket column + one or two numeric measures). Do NOT include id columns, " +
+  "free-text descriptions, or columns the chart won't use. " +
+  "4) Numeric columns should be plain numbers (CAST/ROUND if needed); date " +
+  "columns should be the bucket value, not raw timestamps. " +
+  "Return SQL only — no prose, no code fences.";
 
 export interface SqlAgentDeps {
   context: ContextProvider;

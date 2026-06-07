@@ -323,7 +323,7 @@ export function Workspace(): JSX.Element {
           >
             <SpriteBee
               role="solo"
-              size={80}
+              size={96}
               active={baseline.status === "running"}
               done={baseline.status === "complete"}
               title="solo bee · single model"
