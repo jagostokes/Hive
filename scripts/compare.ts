@@ -8,6 +8,8 @@
  *
  * Ctrl+C to stop (cleans up the cache rows this run created).
  * Requires OPENROUTER_API_KEY + DATABASE_URL.
+ * 
+ * DONE
  */
 import "dotenv/config";
 import { getPool, closePool } from "../src/db/index.js";
