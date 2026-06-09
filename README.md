@@ -63,6 +63,10 @@ config/          model definitions and loop caps (single source of truth)
 .env.example     OPENROUTER_API_KEY + InsForge connection vars
 ```
 
+## Authors
+
+Built by **Jago Stokes** and **Ben Guettler**.
+
 ## Setup
 ```bash
 npm install
