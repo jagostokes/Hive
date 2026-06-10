@@ -16,7 +16,7 @@ import { resolve } from "node:path";
 interface QuestionMetrics {
   questionId: number;
   question: string;
-  difficulty: string;
+  style: string;
   totalTokens: number;
   costUsd: number;
   sqlSuccess: boolean;

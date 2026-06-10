@@ -40,7 +40,7 @@ import { runSqlAgent, type SqlAgentResult } from "../src/agents/sqlAgent.js";
 
 interface TrainingQuestion {
   id: number;
-  difficulty: string;
+  style: string; // ambiguous | precise | jargon | obscure
   question: string;
   concepts: string[];
 }
@@ -48,7 +48,7 @@ interface TrainingQuestion {
 interface QuestionMetrics {
   questionId: number;
   question: string;
-  difficulty: string;
+  style: string; // ambiguous | precise | jargon | obscure
   // Tokens & cost
   totalTokens: number;
   promptTokens: number;
@@ -236,7 +236,7 @@ async function main(): Promise<void> {
     resetLedger();
 
     console.log(
-      `\n[${ i + 1}/${questions.length}] (${q.difficulty}) "${q.question}"`,
+      `\n[${ i + 1}/${questions.length}] (${q.style}) "${q.question}"`,
     );
 
     // --- Load the latest evolved prompt (autoregressive: each question sees improvements from previous) ---
@@ -262,7 +262,7 @@ async function main(): Promise<void> {
       allMetrics.push({
         questionId: q.id,
         question: q.question,
-        difficulty: q.difficulty,
+        style: q.style,
         totalTokens: ledger.reduce(
           (s, e) => s + e.promptTokens + e.completionTokens,
           0,
@@ -378,7 +378,7 @@ async function main(): Promise<void> {
     allMetrics.push({
       questionId: q.id,
       question: q.question,
-      difficulty: q.difficulty,
+      style: q.style,
       totalTokens,
       promptTokens: ledger.reduce((s, e) => s + e.promptTokens, 0),
       completionTokens: ledger.reduce((s, e) => s + e.completionTokens, 0),
@@ -477,12 +477,12 @@ async function main(): Promise<void> {
       const m = allMetrics[idx];
       await pool.query(
         `INSERT INTO training_metrics
-           (run_id, question_index, question_text, difficulty,
+           (run_id, question_index, question_text, style,
             total_tokens, cost_usd, sql_success, first_attempt_pass,
             escalation_used, attempts, prompt_generation, failure_reason, elapsed_ms)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
-          runId, idx + 1, m.question, m.difficulty,
+          runId, idx + 1, m.question, m.style,
           m.totalTokens, m.costUsd, m.sqlSuccess, m.firstAttemptPass,
           m.escalationUsed, m.attempts,
           m.promptGeneration,

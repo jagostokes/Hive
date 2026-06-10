@@ -79,7 +79,7 @@ create table if not exists training_metrics (
   run_id            bigint references training_runs(id),
   question_index    integer not null,
   question_text     text not null,
-  difficulty        text,
+  style             text,
   total_tokens      integer not null,
   cost_usd          real not null,
   sql_success       boolean not null,

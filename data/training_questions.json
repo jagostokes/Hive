@@ -1,456 +1,456 @@
 {
   "dataset": "northwind",
-  "description": "75 training questions for the Hive self-improvement loop, graded by difficulty",
+  "description": "75 medium-difficulty training questions with varied phrasing styles (ambiguous, precise, jargon, obscure) for homogeneous training",
   "questions": [
     {
       "id": 1,
-      "difficulty": "easy",
-      "question": "How many customers do we have?",
-      "concepts": ["COUNT", "single table"]
+      "style": "ambiguous",
+      "question": "How are we doing on sales?",
+      "concepts": ["revenue", "aggregation", "open-ended"]
     },
     {
       "id": 2,
-      "difficulty": "easy",
-      "question": "What are the total number of orders?",
-      "concepts": ["COUNT", "single table"]
+      "style": "precise",
+      "question": "What is the total revenue by product category for orders placed in 1997?",
+      "concepts": ["JOIN", "GROUP BY", "date filter", "calculated field"]
     },
     {
       "id": 3,
-      "difficulty": "easy",
-      "question": "List all product categories.",
-      "concepts": ["SELECT", "single table"]
+      "style": "jargon",
+      "question": "What's our freight cost ratio by shipper?",
+      "concepts": ["ratio calculation", "GROUP BY", "business term"]
     },
     {
       "id": 4,
-      "difficulty": "easy",
-      "question": "What is the most expensive product?",
-      "concepts": ["ORDER BY", "LIMIT", "single table"]
+      "style": "ambiguous",
+      "question": "Which customers are our best?",
+      "concepts": ["ranking", "ambiguous metric", "GROUP BY"]
     },
     {
       "id": 5,
-      "difficulty": "easy",
-      "question": "How many employees work at the company?",
-      "concepts": ["COUNT", "single table"]
+      "style": "precise",
+      "question": "Show the top 10 products by total quantity sold, with their category name.",
+      "concepts": ["JOIN", "GROUP BY", "SUM", "ORDER BY", "LIMIT"]
     },
     {
       "id": 6,
-      "difficulty": "easy",
-      "question": "Which countries do our customers come from?",
-      "concepts": ["DISTINCT", "single table"]
+      "style": "obscure",
+      "question": "What's the reorder gap across our product lines?",
+      "concepts": ["reorder level vs stock", "business term", "calculation"]
     },
     {
       "id": 7,
-      "difficulty": "easy",
-      "question": "What is the average unit price of all products?",
-      "concepts": ["AVG", "single table"]
+      "style": "ambiguous",
+      "question": "Are there any trends in our orders?",
+      "concepts": ["time series", "open-ended", "GROUP BY date"]
     },
     {
       "id": 8,
-      "difficulty": "easy",
-      "question": "How many products are discontinued?",
-      "concepts": ["COUNT", "WHERE", "single table"]
+      "style": "precise",
+      "question": "Calculate the average order value per customer, only for customers with more than 5 orders.",
+      "concepts": ["JOIN", "GROUP BY", "HAVING", "AVG"]
     },
     {
       "id": 9,
-      "difficulty": "easy",
-      "question": "List all shipping companies.",
-      "concepts": ["SELECT", "single table"]
+      "style": "jargon",
+      "question": "What's our customer concentration risk by country?",
+      "concepts": ["concentration", "GROUP BY", "percentage"]
     },
     {
       "id": 10,
-      "difficulty": "easy",
-      "question": "What is the total number of products in stock?",
-      "concepts": ["SUM", "single table"]
+      "style": "obscure",
+      "question": "Show me the territory coverage gaps.",
+      "concepts": ["territories", "employees", "LEFT JOIN"]
     },
     {
       "id": 11,
-      "difficulty": "easy",
-      "question": "Which city has the most customers?",
-      "concepts": ["GROUP BY", "ORDER BY", "COUNT"]
+      "style": "ambiguous",
+      "question": "How's each employee performing?",
+      "concepts": ["employee revenue", "GROUP BY", "ambiguous metric"]
     },
     {
       "id": 12,
-      "difficulty": "easy",
-      "question": "What are the top 5 cheapest products?",
-      "concepts": ["ORDER BY", "LIMIT"]
+      "style": "precise",
+      "question": "List all orders that shipped more than 5 days after the order date, with customer name and shipper.",
+      "concepts": ["date arithmetic", "JOIN", "WHERE"]
     },
     {
       "id": 13,
-      "difficulty": "easy",
-      "question": "How many orders were shipped to France?",
-      "concepts": ["COUNT", "WHERE"]
+      "style": "jargon",
+      "question": "What's our average days-to-ship by region?",
+      "concepts": ["date arithmetic", "AVG", "GROUP BY", "business metric"]
     },
     {
       "id": 14,
-      "difficulty": "easy",
-      "question": "What is the total freight cost across all orders?",
-      "concepts": ["SUM", "single table"]
+      "style": "obscure",
+      "question": "Which suppliers are we over-reliant on?",
+      "concepts": ["supplier concentration", "product count", "percentage"]
     },
     {
       "id": 15,
-      "difficulty": "easy",
-      "question": "List all employees and their job titles.",
-      "concepts": ["SELECT", "single table"]
+      "style": "ambiguous",
+      "question": "Tell me about our product mix.",
+      "concepts": ["category breakdown", "open-ended"]
     },
     {
       "id": 16,
-      "difficulty": "easy",
-      "question": "How many suppliers are there per country?",
-      "concepts": ["GROUP BY", "COUNT"]
+      "style": "precise",
+      "question": "What is the month-over-month order count for 1997, broken out by quarter?",
+      "concepts": ["date extraction", "GROUP BY", "time series"]
     },
     {
       "id": 17,
-      "difficulty": "easy",
-      "question": "What is the earliest order date?",
-      "concepts": ["MIN", "single table"]
+      "style": "jargon",
+      "question": "What's our SKU depth per category?",
+      "concepts": ["product count per category", "business term"]
     },
     {
       "id": 18,
-      "difficulty": "easy",
-      "question": "Which products have units on order greater than zero?",
-      "concepts": ["WHERE", "comparison"]
+      "style": "obscure",
+      "question": "Are there any dormant accounts?",
+      "concepts": ["customers without recent orders", "date comparison"]
     },
     {
       "id": 19,
-      "difficulty": "easy",
-      "question": "How many orders were placed in 1997?",
-      "concepts": ["COUNT", "WHERE", "date filter"]
+      "style": "ambiguous",
+      "question": "What's happening with our pricing?",
+      "concepts": ["price analysis", "open-ended", "AVG/distribution"]
     },
     {
       "id": 20,
-      "difficulty": "easy",
-      "question": "What is the average freight cost per order?",
-      "concepts": ["AVG", "single table"]
+      "style": "precise",
+      "question": "Show revenue per employee per quarter for 1997, sorted by total revenue descending.",
+      "concepts": ["JOIN", "date extraction", "GROUP BY", "ORDER BY"]
     },
     {
       "id": 21,
-      "difficulty": "easy",
-      "question": "List the top 10 customers by company name alphabetically.",
-      "concepts": ["ORDER BY", "LIMIT"]
+      "style": "jargon",
+      "question": "What's our order fill rate by category?",
+      "concepts": ["fill rate", "business term", "ratio"]
     },
     {
       "id": 22,
-      "difficulty": "easy",
-      "question": "How many different product categories exist?",
-      "concepts": ["COUNT", "single table"]
+      "style": "obscure",
+      "question": "How fragmented is our supplier base?",
+      "concepts": ["supplier diversity", "COUNT DISTINCT", "analysis"]
     },
     {
       "id": 23,
-      "difficulty": "easy",
-      "question": "What are the names of all regions?",
-      "concepts": ["SELECT", "single table"]
+      "style": "ambiguous",
+      "question": "Who are our problem customers?",
+      "concepts": ["late payments/low orders", "ambiguous definition"]
     },
     {
       "id": 24,
-      "difficulty": "easy",
-      "question": "Which product has the most units in stock?",
-      "concepts": ["ORDER BY", "LIMIT"]
+      "style": "precise",
+      "question": "For each category, what percentage of total revenue does it represent?",
+      "concepts": ["JOIN", "SUM", "percentage", "window function or subquery"]
     },
     {
       "id": 25,
-      "difficulty": "easy",
-      "question": "How many orders have not been shipped yet?",
-      "concepts": ["COUNT", "WHERE NULL"]
+      "style": "jargon",
+      "question": "What's the average basket size by country?",
+      "concepts": ["items per order", "GROUP BY country", "AVG"]
     },
     {
       "id": 26,
-      "difficulty": "medium",
-      "question": "What is the total revenue per product category?",
-      "concepts": ["JOIN", "GROUP BY", "SUM", "calculated field"]
+      "style": "obscure",
+      "question": "Show me the seasonal patterns.",
+      "concepts": ["month aggregation", "multi-year", "trends"]
     },
     {
       "id": 27,
-      "difficulty": "medium",
-      "question": "Which employee has processed the most orders?",
-      "concepts": ["JOIN", "GROUP BY", "COUNT", "ORDER BY"]
+      "style": "ambiguous",
+      "question": "Which products should we worry about?",
+      "concepts": ["low stock/declining sales", "ambiguous"]
     },
     {
       "id": 28,
-      "difficulty": "medium",
-      "question": "What is the average order value by country?",
-      "concepts": ["JOIN", "GROUP BY", "AVG", "calculated field"]
+      "style": "precise",
+      "question": "List customers who ordered in 1996 but not in 1997, with their total 1996 spend.",
+      "concepts": ["NOT EXISTS/EXCEPT", "date filter", "SUM"]
     },
     {
       "id": 29,
-      "difficulty": "medium",
-      "question": "Which products have never been ordered?",
-      "concepts": ["LEFT JOIN", "NULL check"]
+      "style": "jargon",
+      "question": "What's our gross margin by product assuming 60% COGS?",
+      "concepts": ["calculated field", "margin formula", "business term"]
     },
     {
       "id": 30,
-      "difficulty": "medium",
-      "question": "What is the monthly revenue trend for 1997?",
-      "concepts": ["JOIN", "date extraction", "GROUP BY", "time series"]
+      "style": "obscure",
+      "question": "Where are the bottlenecks in shipping?",
+      "concepts": ["shipping delay analysis", "GROUP BY shipper"]
     },
     {
       "id": 31,
-      "difficulty": "medium",
-      "question": "Who are the top 5 customers by total spending?",
-      "concepts": ["JOIN", "SUM", "GROUP BY", "ORDER BY"]
+      "style": "ambiguous",
+      "question": "How diversified are our sales?",
+      "concepts": ["category/country distribution", "open-ended"]
     },
     {
       "id": 32,
-      "difficulty": "medium",
-      "question": "What is the average shipping delay in days?",
-      "concepts": ["date arithmetic", "AVG"]
+      "style": "precise",
+      "question": "What is the average discount percentage applied per product category, weighted by quantity?",
+      "concepts": ["weighted average", "JOIN", "GROUP BY"]
     },
     {
       "id": 33,
-      "difficulty": "medium",
-      "question": "Which supplier provides the most products?",
-      "concepts": ["JOIN", "GROUP BY", "COUNT"]
+      "style": "jargon",
+      "question": "What's our cross-sell rate between categories?",
+      "concepts": ["orders spanning multiple categories", "analysis"]
     },
     {
       "id": 34,
-      "difficulty": "medium",
-      "question": "What percentage of orders ship late (after the required date)?",
-      "concepts": ["CASE", "date comparison", "percentage calculation"]
+      "style": "obscure",
+      "question": "Show the employee hierarchy with their sales numbers.",
+      "concepts": ["self-JOIN", "reports_to", "revenue"]
     },
     {
       "id": 35,
-      "difficulty": "medium",
-      "question": "What is the revenue breakdown by shipping company?",
-      "concepts": ["JOIN", "GROUP BY", "SUM"]
+      "style": "ambiguous",
+      "question": "Are we growing?",
+      "concepts": ["year-over-year comparison", "open-ended"]
     },
     {
       "id": 36,
-      "difficulty": "medium",
-      "question": "Which product category has the highest average unit price?",
-      "concepts": ["JOIN", "GROUP BY", "AVG"]
+      "style": "precise",
+      "question": "Rank products within each category by revenue, showing only the top 3 per category.",
+      "concepts": ["window function", "ROW_NUMBER", "PARTITION BY"]
     },
     {
       "id": 37,
-      "difficulty": "medium",
-      "question": "How many orders does each customer place on average per year?",
-      "concepts": ["GROUP BY", "date extraction", "AVG", "subquery"]
+      "style": "jargon",
+      "question": "What's our AOV trend over time?",
+      "concepts": ["average order value", "time series", "business term"]
     },
     {
       "id": 38,
-      "difficulty": "medium",
-      "question": "What is the total discount given per product category?",
-      "concepts": ["JOIN", "GROUP BY", "SUM", "calculated field"]
+      "style": "obscure",
+      "question": "Which regions are underserved?",
+      "concepts": ["territory/order analysis", "low coverage"]
     },
     {
       "id": 39,
-      "difficulty": "medium",
-      "question": "Which countries have customers but no suppliers?",
-      "concepts": ["EXCEPT", "set operations"]
+      "style": "ambiguous",
+      "question": "What's the deal with our discounts?",
+      "concepts": ["discount analysis", "open-ended"]
     },
     {
       "id": 40,
-      "difficulty": "medium",
-      "question": "What is the order count by quarter for each year?",
-      "concepts": ["date extraction", "GROUP BY", "pivot-like"]
+      "style": "precise",
+      "question": "Show the running total of revenue by month for the entire order history.",
+      "concepts": ["window function", "SUM OVER", "date extraction"]
     },
     {
       "id": 41,
-      "difficulty": "medium",
-      "question": "Which employees report to whom? Show the management hierarchy.",
-      "concepts": ["self-JOIN", "reports_to"]
+      "style": "jargon",
+      "question": "What's our inventory turnover by category?",
+      "concepts": ["units sold vs units in stock", "ratio", "business term"]
     },
     {
       "id": 42,
-      "difficulty": "medium",
-      "question": "What is the reorder status of each product (stock vs reorder level)?",
-      "concepts": ["CASE", "comparison", "business logic"]
+      "style": "obscure",
+      "question": "Find the power law in our customer base.",
+      "concepts": ["Pareto/concentration", "top customers vs total"]
     },
     {
       "id": 43,
-      "difficulty": "medium",
-      "question": "What are the top 3 most popular products by quantity sold?",
-      "concepts": ["JOIN", "SUM", "GROUP BY", "ORDER BY"]
+      "style": "ambiguous",
+      "question": "How efficient is our shipping?",
+      "concepts": ["shipping cost/time analysis", "open-ended"]
     },
     {
       "id": 44,
-      "difficulty": "medium",
-      "question": "Which customers have placed orders in every year we have data?",
-      "concepts": ["GROUP BY", "HAVING", "COUNT DISTINCT", "date extraction"]
+      "style": "precise",
+      "question": "For each shipper, calculate the percentage of orders that were delivered late (after required_date).",
+      "concepts": ["date comparison", "CASE", "GROUP BY", "percentage"]
     },
     {
       "id": 45,
-      "difficulty": "medium",
-      "question": "What is the average number of items per order?",
-      "concepts": ["subquery", "AVG", "COUNT"]
+      "style": "jargon",
+      "question": "What's the LTV distribution across customer segments?",
+      "concepts": ["lifetime value", "segmentation", "distribution"]
     },
     {
       "id": 46,
-      "difficulty": "medium",
-      "question": "Show revenue by employee, ranked from highest to lowest.",
-      "concepts": ["JOIN", "SUM", "GROUP BY", "ORDER BY"]
+      "style": "obscure",
+      "question": "Show me where money is leaking.",
+      "concepts": ["discount impact", "revenue loss", "analysis"]
     },
     {
       "id": 47,
-      "difficulty": "medium",
-      "question": "Which products are below their reorder level and not discontinued?",
-      "concepts": ["WHERE", "AND", "business logic"]
+      "style": "ambiguous",
+      "question": "What patterns do you see in our data?",
+      "concepts": ["general analysis", "completely open-ended"]
     },
     {
       "id": 48,
-      "difficulty": "medium",
-      "question": "What is the customer concentration by country (top 5 countries by order count)?",
-      "concepts": ["JOIN", "GROUP BY", "COUNT", "ORDER BY", "LIMIT"]
+      "style": "precise",
+      "question": "List the 5 countries with the highest average freight cost per order, including order count.",
+      "concepts": ["GROUP BY", "AVG", "ORDER BY", "LIMIT"]
     },
     {
       "id": 49,
-      "difficulty": "medium",
-      "question": "Calculate the total revenue including discounts for each order.",
-      "concepts": ["JOIN", "calculated field", "discount arithmetic"]
+      "style": "jargon",
+      "question": "What's our supplier lead-time reliability?",
+      "concepts": ["shipping delay by supplier", "business term"]
     },
     {
       "id": 50,
-      "difficulty": "medium",
-      "question": "What is the average time between a customer's orders?",
-      "concepts": ["self-JOIN or LAG", "date arithmetic", "AVG"]
+      "style": "obscure",
+      "question": "Which products are cannibalizing each other?",
+      "concepts": ["co-occurrence", "same-category competition"]
     },
     {
       "id": 51,
-      "difficulty": "hard",
-      "question": "What is the month-over-month revenue growth rate?",
-      "concepts": ["window function", "LAG", "date extraction", "percentage"]
+      "style": "ambiguous",
+      "question": "Give me a health check on the business.",
+      "concepts": ["multiple KPIs", "completely open-ended"]
     },
     {
       "id": 52,
-      "difficulty": "hard",
-      "question": "Rank customers by their lifetime value and show their percentile.",
-      "concepts": ["window function", "PERCENT_RANK", "JOIN", "SUM"]
+      "style": "precise",
+      "question": "What is the average number of distinct products per order, grouped by customer country?",
+      "concepts": ["COUNT DISTINCT", "AVG", "GROUP BY", "subquery"]
     },
     {
       "id": 53,
-      "difficulty": "hard",
-      "question": "What is the running total of revenue over time?",
-      "concepts": ["window function", "SUM OVER", "ORDER BY"]
+      "style": "jargon",
+      "question": "What's our revenue per headcount by territory?",
+      "concepts": ["revenue / employee count", "territory JOIN"]
     },
     {
       "id": 54,
-      "difficulty": "hard",
-      "question": "Which products show declining sales quarter over quarter?",
-      "concepts": ["window function", "LAG", "date extraction", "comparison"]
+      "style": "obscure",
+      "question": "Are there ghost products in the catalog?",
+      "concepts": ["products never ordered", "LEFT JOIN NULL"]
     },
     {
       "id": 55,
-      "difficulty": "hard",
-      "question": "Calculate the customer retention rate by cohort (first order month).",
-      "concepts": ["cohort analysis", "window function", "date extraction", "CASE"]
+      "style": "ambiguous",
+      "question": "How loyal are our customers?",
+      "concepts": ["repeat purchase rate", "frequency", "ambiguous"]
     },
     {
       "id": 56,
-      "difficulty": "hard",
-      "question": "What is each product's contribution to its category's total revenue?",
-      "concepts": ["window function", "SUM OVER PARTITION", "percentage"]
+      "style": "precise",
+      "question": "Show the percentage change in quarterly revenue between Q1 and Q4 of 1997.",
+      "concepts": ["date extraction", "aggregation", "percentage change"]
     },
     {
       "id": 57,
-      "difficulty": "hard",
-      "question": "Identify customers whose order frequency is increasing over time.",
-      "concepts": ["window function", "LAG", "date arithmetic", "trend"]
+      "style": "jargon",
+      "question": "What's our category penetration rate by country?",
+      "concepts": ["categories ordered / total categories", "by country"]
     },
     {
       "id": 58,
-      "difficulty": "hard",
-      "question": "What is the basket analysis — which products are most often ordered together?",
-      "concepts": ["self-JOIN on order_details", "COUNT", "GROUP BY", "pair analysis"]
+      "style": "obscure",
+      "question": "Where are the diminishing returns in our product range?",
+      "concepts": ["long tail products", "revenue contribution"]
     },
     {
       "id": 59,
-      "difficulty": "hard",
-      "question": "Calculate the Pareto ratio: what percentage of products generate 80% of revenue?",
-      "concepts": ["cumulative SUM", "window function", "percentage", "threshold"]
+      "style": "ambiguous",
+      "question": "What should we focus on next quarter?",
+      "concepts": ["recommendations based on data", "open-ended"]
     },
     {
       "id": 60,
-      "difficulty": "hard",
-      "question": "What is the average days between reorders for each product?",
-      "concepts": ["LAG", "date arithmetic", "per-product grouping"]
+      "style": "precise",
+      "question": "For each employee, show their total revenue and the percentage of company total they represent.",
+      "concepts": ["JOIN", "SUM", "window function or subquery", "percentage"]
     },
     {
       "id": 61,
-      "difficulty": "hard",
-      "question": "Show the top 3 products per category by revenue using a window function.",
-      "concepts": ["ROW_NUMBER OVER PARTITION", "JOIN", "filtering"]
+      "style": "jargon",
+      "question": "What's our order velocity trend?",
+      "concepts": ["orders per time period", "trend", "business term"]
     },
     {
       "id": 62,
-      "difficulty": "hard",
-      "question": "What is the net revenue after discounts, grouped by quarter and region?",
-      "concepts": ["multi-JOIN", "calculated field", "date extraction", "GROUP BY"]
+      "style": "obscure",
+      "question": "Show the Pareto curve of our product catalog.",
+      "concepts": ["cumulative revenue percentage", "ranked products"]
     },
     {
       "id": 63,
-      "difficulty": "hard",
-      "question": "Identify the seasonality pattern: which month historically has the highest revenue?",
-      "concepts": ["date extraction", "GROUP BY", "multi-year aggregation"]
+      "style": "ambiguous",
+      "question": "Which markets matter most?",
+      "concepts": ["country revenue ranking", "ambiguous definition of 'matter'"]
     },
     {
       "id": 64,
-      "difficulty": "hard",
-      "question": "Calculate the customer churn rate (customers who ordered in one year but not the next).",
-      "concepts": ["self-JOIN", "NOT EXISTS", "date extraction", "percentage"]
+      "style": "precise",
+      "question": "Calculate the average time in days between a customer's first and second order.",
+      "concepts": ["LAG/LEAD", "date arithmetic", "window function"]
     },
     {
       "id": 65,
-      "difficulty": "hard",
-      "question": "What is the moving average of daily order count over a 7-day window?",
-      "concepts": ["window function", "AVG OVER ROWS", "date series"]
+      "style": "jargon",
+      "question": "What's our replenishment urgency score by product?",
+      "concepts": ["stock vs reorder level", "priority calculation"]
     },
     {
       "id": 66,
-      "difficulty": "hard",
-      "question": "Which employees have above-average revenue per order compared to their peers?",
-      "concepts": ["subquery", "HAVING", "comparison with AVG"]
+      "style": "obscure",
+      "question": "Find the silent churn signals.",
+      "concepts": ["declining order frequency", "customer analysis"]
     },
     {
       "id": 67,
-      "difficulty": "hard",
-      "question": "Calculate the year-over-year growth rate for each product category.",
-      "concepts": ["window function", "LAG", "date extraction", "partition"]
+      "style": "ambiguous",
+      "question": "How's Q4 looking compared to last year?",
+      "concepts": ["year-over-year Q4 comparison", "somewhat specific"]
     },
     {
       "id": 68,
-      "difficulty": "hard",
-      "question": "What percentage of total company revenue comes from the top 10 customers?",
-      "concepts": ["subquery", "SUM", "percentage", "LIMIT"]
+      "style": "precise",
+      "question": "Show the supplier with the highest total product revenue, broken down by category.",
+      "concepts": ["multi-JOIN", "GROUP BY", "SUM", "ORDER BY"]
     },
     {
       "id": 69,
-      "difficulty": "hard",
-      "question": "Rank suppliers by the total revenue their products generate, with dense ranking.",
-      "concepts": ["DENSE_RANK", "multi-JOIN", "SUM"]
+      "style": "jargon",
+      "question": "What's our geographic revenue density?",
+      "concepts": ["revenue per country/region", "business term"]
     },
     {
       "id": 70,
-      "difficulty": "hard",
-      "question": "What is the median order value? Compare it to the mean.",
-      "concepts": ["PERCENTILE_CONT", "AVG", "comparison"]
+      "style": "obscure",
+      "question": "Which shipping lanes are underperforming?",
+      "concepts": ["shipper + country combinations", "cost/delay analysis"]
     },
     {
       "id": 71,
-      "difficulty": "hard",
-      "question": "For each customer, what is their largest single order vs their average order size?",
-      "concepts": ["GROUP BY", "MAX", "AVG", "comparison"]
+      "style": "ambiguous",
+      "question": "Are we leaving money on the table?",
+      "concepts": ["missed opportunities", "completely ambiguous"]
     },
     {
       "id": 72,
-      "difficulty": "hard",
-      "question": "Which territory has the highest revenue per employee?",
-      "concepts": ["multi-JOIN", "GROUP BY", "calculated field", "territories"]
+      "style": "precise",
+      "question": "What is the correlation between discount percentage and order quantity per product?",
+      "concepts": ["discount vs quantity", "analysis", "GROUP BY"]
     },
     {
       "id": 73,
-      "difficulty": "hard",
-      "question": "Build a customer RFM analysis: recency, frequency, and monetary value for each customer.",
-      "concepts": ["multiple aggregations", "date arithmetic", "NTILE", "segmentation"]
+      "style": "jargon",
+      "question": "What's our net revenue retention by customer cohort?",
+      "concepts": ["cohort analysis", "revenue retention", "business term"]
     },
     {
       "id": 74,
-      "difficulty": "hard",
-      "question": "What is the supplier dependency risk — categories where >50% of products come from one supplier?",
-      "concepts": ["GROUP BY", "COUNT", "HAVING", "percentage", "concentration"]
+      "style": "obscure",
+      "question": "Map the decision hierarchy against performance.",
+      "concepts": ["employee reports_to + revenue", "self-JOIN"]
     },
     {
       "id": 75,
-      "difficulty": "hard",
-      "question": "Calculate the compound monthly growth rate (CMGR) of total revenue over the full date range.",
-      "concepts": ["first/last value", "date arithmetic", "power function", "mathematical formula"]
+      "style": "ambiguous",
+      "question": "Summarize everything important.",
+      "concepts": ["multiple KPIs", "maximum ambiguity"]
     }
   ]
 }
