@@ -8,7 +8,7 @@ parallel, a single strong model performs the same task end-to-end as a baseline.
 We compare total tokens and cost.
 
 > Status: **scaffold only** — structure in place, no logic implemented yet.
-
+checked
 ## Architecture
 
 ```
