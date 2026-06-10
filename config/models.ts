@@ -34,14 +34,14 @@ export const MODELS: Record<ModelRole, ModelSpec> = {
   // separately by the cache/embedding path. Output tokens are not billed.
   embedding: { slug: "openai/text-embedding-3-small", inputPerMillion: 0.02, outputPerMillion: 0 },
   planner: { slug: "deepseek/deepseek-v4-pro", inputPerMillion: 0.43, outputPerMillion: 0.87 },
-  sqlGen: { slug: "qwen/qwen3-coder-plus", inputPerMillion: 0.65, outputPerMillion: 3.3 },
-  sqlEscalation: { slug: "qwen/qwen3-coder-plus", inputPerMillion: 0.65, outputPerMillion: 3.3 },
+  sqlGen: { slug: "deepseek/deepseek-v4-flash", inputPerMillion: 0.10, outputPerMillion: 0.20 },
+  sqlEscalation: { slug: "deepseek/deepseek-v4-pro", inputPerMillion: 0.43, outputPerMillion: 0.87 },
   insight: { slug: "deepseek/deepseek-v4-flash", inputPerMillion: 0.1, outputPerMillion: 0.2 },
-  dashboardPlan: { slug: "google/gemini-2.5-flash", inputPerMillion: 0.3, outputPerMillion: 2.5 },
+  dashboardPlan: { slug: "deepseek/deepseek-v4-flash", inputPerMillion: 0.10, outputPerMillion: 0.20 },
   // Dashboard code quality matters a lot for the demo, so codeGen runs on the
-  // stronger coder (same slug as sqlEscalation). Still ~8x cheaper on output than
-  // the baseline flagship, so the brain lane keeps its large cost advantage.
-  codeGen: { slug: "qwen/qwen3-coder-plus", inputPerMillion: 0.65, outputPerMillion: 3.3 },
+  // strongest non-flagship coder. Still ~29x cheaper on output than the baseline
+  // flagship, so the brain lane keeps its large cost advantage.
+  codeGen: { slug: "deepseek/deepseek-v4-pro", inputPerMillion: 0.43, outputPerMillion: 0.87 },
   codeEdit: { slug: "relace/relace-apply-3", inputPerMillion: 0.85, outputPerMillion: 1.3 },
   baseline: { slug: "anthropic/claude-opus-4.8", inputPerMillion: 5.0, outputPerMillion: 25.0 },
 };
