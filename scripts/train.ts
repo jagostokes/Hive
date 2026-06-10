@@ -101,7 +101,7 @@ interface TrainingReport {
     glossaryTermsLearned: number;
     promptSurgeries: number;
     learnedExamples: number;
-    // Improvement trajectory (first 10 vs last 10)
+    // Improvement trajectory (first 3 vs last 3)
     firstTenSuccessRate: number;
     lastTenSuccessRate: number;
     firstTenAvgTokens: number;
@@ -177,8 +177,8 @@ function computeSummary(metrics: QuestionMetrics[]): TrainingReport["summary"] {
   const surgeries = metrics.filter((m) => m.promptSurgeryTriggered).length;
   const examples = metrics.filter((m) => m.learnedExampleStored).length;
 
-  const first10 = metrics.slice(0, Math.min(10, n));
-  const last10 = metrics.slice(Math.max(0, n - 10));
+  const first10 = metrics.slice(0, Math.min(3, n));
+  const last10 = metrics.slice(Math.max(0, n - 3));
 
   const rate = (arr: QuestionMetrics[]) =>
     arr.length > 0 ? arr.filter((m) => m.sqlSuccess).length / arr.length : 0;
@@ -517,7 +517,7 @@ async function main(): Promise<void> {
     `Avg tokens/question: ${Math.round(report.summary.avgTokensPerQuestion)}`,
   );
   console.log(`Avg cost/question: $${report.summary.avgCostPerQuestion.toFixed(4)}`);
-  console.log(`\n📈 IMPROVEMENT TRAJECTORY (first 10 vs last 10):`);
+  console.log(`\n📈 IMPROVEMENT TRAJECTORY (first 3 vs last 3):`);
   console.log(
     `   Success rate: ${(report.summary.firstTenSuccessRate * 100).toFixed(1)}% → ${(report.summary.lastTenSuccessRate * 100).toFixed(1)}%`,
   );

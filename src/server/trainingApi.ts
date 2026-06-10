@@ -353,8 +353,8 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
   // Compute summary
   const n = run.questionsRun;
   const results = run.metrics.filter((m) => m.type === "question_result");
-  const first10 = results.slice(0, Math.min(10, results.length));
-  const last10 = results.slice(Math.max(0, results.length - 10));
+  const first10 = results.slice(0, Math.min(3, results.length));
+  const last10 = results.slice(Math.max(0, results.length - 3));
 
   const summary: TrainingSummary = {
     questionsRun: n,

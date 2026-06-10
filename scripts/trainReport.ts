@@ -108,7 +108,7 @@ function generateHtml(report: TrainingReport): string {
 
 <!-- Improvement trajectory -->
 <div class="bg-[#1e293b] rounded-xl p-5 border border-[#334155] mb-8">
-  <h2 class="text-lg font-semibold mb-3">📈 Improvement Trajectory (first 10 → last 10)</h2>
+  <h2 class="text-lg font-semibold mb-3">📈 Improvement Trajectory (first 3 → last 3)</h2>
   <div class="grid grid-cols-3 gap-4 text-center">
     <div>
       <div class="text-[#94a3b8] text-xs">Success Rate</div>

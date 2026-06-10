@@ -237,7 +237,7 @@ export function Training({ onBack }: Props): JSX.Element {
             padding: 16,
           }}>
             <h4 style={{ margin: "0 0 8px", fontSize: 14, color: "var(--bark, #e2e8f0)" }}>
-              Improvement Trajectory (first 10 → last 10)
+              Improvement Trajectory (first 3 → last 3)
             </h4>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, textAlign: "center" }}>
               <div>
