@@ -16,10 +16,40 @@ create table if not exists query_cache (
 );
 
 -- Business glossary: human terms -> definitions, optionally backed by a SQL
--- expression the SQL agent can reuse.
+-- expression the SQL agent can reuse. Rows can be seeded manually or grown
+-- automatically by the glossary-growth researcher agent.
 create table if not exists business_glossary (
   id             bigserial primary key,
   term           text not null,
   definition     text not null,
-  sql_expression text
+  sql_expression text,
+  source         text default 'seed',       -- 'seed' | 'auto-research'
+  created_at     timestamptz default now()
+);
+
+-- Prompt surgery: versioned system prompts per agent role. The surgeon agent
+-- rewrites a failing prompt and persists the new version here. The orchestrator
+-- loads the latest (highest generation) version for each role at run start.
+create table if not exists prompt_versions (
+  id          bigserial primary key,
+  role        text not null,                 -- matches ModelRole (e.g. 'sqlGen')
+  generation  integer not null default 1,    -- monotonically increasing
+  system_prompt text not null,               -- the full system-message text
+  parent_id   bigint references prompt_versions(id),  -- previous version
+  diagnosis   text,                          -- why the surgeon rewrote it
+  win_rate    real,                          -- rolling success rate (0..1)
+  created_at  timestamptz default now()
+);
+
+-- Learned examples: when a cheap agent fails and the escalation model succeeds,
+-- the (question, bad_output, good_output) triple is stored here. On future runs,
+-- relevant examples are injected as few-shot into the cheap agent's prompt so it
+-- learns from the expensive model's corrections.
+create table if not exists learned_examples (
+  id            bigserial primary key,
+  role          text not null,               -- which agent role
+  sub_question  text not null,               -- the input that caused the failure
+  bad_output    text not null,               -- the cheap model's rejected output
+  good_output   text not null,               -- the escalation model's accepted output
+  created_at    timestamptz default now()
 );

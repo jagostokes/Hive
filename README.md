@@ -44,7 +44,7 @@ The planner decomposes questions into a directed acyclic graph (DAG) of sub-ques
 
 ## Hard requirements
 - **TypeScript + Node**, local orchestrator.
-- **InsForge Postgres** as the data source.
+- **Postgres** (Neon free tier, or any provider with pgvector) as the data source.
 - **OpenRouter** for all model calls (OpenAI SDK, baseURL `https://openrouter.ai/api/v1`, key from `OPENROUTER_API_KEY`).
 - **Fully domain-agnostic**: no hardcoded table/column names or domain logic. The schema is discovered at runtime; the question is an input.
 - **One shared model client**; models defined in **one config file** (`config/`); all loops capped (2 cheap + 1 escalation).
@@ -52,7 +52,7 @@ The planner decomposes questions into a directed acyclic graph (DAG) of sub-ques
 ## Structure
 ```
 src/
-  db/            connect to InsForge Postgres; discover schema at runtime
+  db/            connect to Postgres (Neon); discover schema at runtime
   models/        single shared model client (OpenAI SDK → OpenRouter)
   agents/        specialized sub-agents (cheap model by default)
   verifiers/     objective checks; verified failure triggers escalation
@@ -60,7 +60,7 @@ src/
   baseline/      single strong model, end-to-end, for comparison
   web/           localhost dashboard (answer + token/cost comparison)
 config/          model definitions and loop caps (single source of truth)
-.env.example     OPENROUTER_API_KEY + InsForge connection vars
+.env.example     OPENROUTER_API_KEY + Postgres connection string
 ```
 
 ## Authors
@@ -70,6 +70,6 @@ Built by **Jago Stokes** and **Ben Guettler**.
 ## Setup
 ```bash
 npm install
-cp .env.example .env   # fill in OPENROUTER_API_KEY + InsForge connection vars
+cp .env.example .env   # fill in OPENROUTER_API_KEY + DATABASE_URL (Neon)
 npm run dev            # placeholder for now
 ```

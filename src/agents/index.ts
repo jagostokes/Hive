@@ -56,3 +56,25 @@ export {
   type PlannerAgentDeps,
   type PlannerAgentResult,
 } from "./plannerAgent.js";
+export {
+  runSurgeon,
+  performSurgery,
+  loadLatestPrompt,
+  loadPromptHistory,
+  savePromptVersion,
+  updateWinRate,
+  type PromptVersion,
+  type SurgeryInput,
+  type SurgeryResult,
+} from "./promptSurgery.js";
+export {
+  researchTerm,
+  growGlossary,
+  glossaryHasTerm,
+  insertGlossaryEntry,
+  detectUnknownTerms,
+  storeLearnedExample,
+  loadLearnedExamples,
+  type ResearchInput,
+  type ResearchResult,
+} from "./glossaryGrowth.js";
