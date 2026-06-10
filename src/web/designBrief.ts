@@ -10,22 +10,24 @@
 // own tool results directly.
 
 export const DASHBOARD_PALETTE = [
-  "#4ade80",
-  "#60a5fa",
+  "#6366f1",
+  "#8b5cf6",
+  "#ec4899",
   "#f59e0b",
-  "#f472b6",
-  "#22d3ee",
-  "#a78bfa",
+  "#10b981",
+  "#3b82f6",
 ];
 
 export const DASHBOARD_DESIGN_BRIEF = `DESIGN BRIEF — produce ONE polished, self-contained HTML dashboard fragment:
-- Output an HTML FRAGMENT only: your markup plus ONE inline <script>. Do NOT include <!doctype>, <html>, <head>, <body>, or any <script src="..."> tags — the host page already loads Chart.js (global \`Chart\`) and paints the dark page background.
-- Charts: use Chart.js via the global \`Chart\`. Create <canvas> elements. Pick the type by the data: a LINE for a trend over a date/time column, a DOUGHNUT for a share/part-of-whole breakdown, a BAR for comparing categories, and a KPI tile for a single scalar. Do NOT load any other chart library.
+- Output an HTML FRAGMENT only: your markup plus ONE inline <script>. Do NOT include <!doctype>, <html>, <head>, <body>, or any <script src="..."> tags — the host page already loads Chart.js (global \`Chart\`), Tailwind CSS, and paints the dark page background.
+- USE TAILWIND CSS — the host page loads the Tailwind CDN. Use Tailwind utility classes for ALL styling (layout, spacing, colors, typography, rounded corners, shadows). Avoid inline style="..." unless Chart.js requires it (e.g. canvas wrapper height).
+- Charts: use Chart.js via the global \`Chart\` with these DEFAULTS on every chart: { responsive: true, maintainAspectRatio: false, borderRadius: 6, tension: 0.3 }. Create <canvas> elements. Pick the type by the data: a LINE for a trend over a date/time column, a DOUGHNUT for a share/part-of-whole breakdown, a BAR for comparing categories, and a KPI tile for a single scalar. Do NOT load any other chart library.
 - Axis formatting: when the x values are dates/timestamps, format them to short readable labels (e.g. new Date(v).toLocaleDateString()) — never show raw ISO strings. When the metric is a whole-number count, use integer ticks (scales.y.ticks.precision = 0) so the axis isn't 0.1, 0.2, ….
-- Layout: wrap cards in a container with style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px". Each card: background #11151f, 1px solid #232a36 border, border-radius 12px, padding 16px 18px, box-shadow 0 1px 2px rgba(0,0,0,.4). Give each card a title (color #e6e6e6, font-weight 600) and, when an insight is provided, a small muted caption (color #8b95a5, font-size 12px).
-- Theme: text #e6e6e6, muted labels #8b95a5. Chart axes/gridlines should use #8b95a5 / #232a36. Series colors cycle through ["#4ade80","#60a5fa","#f59e0b","#f472b6","#22d3ee","#a78bfa"].
-- Sizing (CRITICAL — get this exactly right): NEVER place a bare <canvas> in the card. ALWAYS wrap it: <div style="position:relative;height:260px"><canvas></canvas></div>, and ALWAYS pass Chart.js options { responsive:true, maintainAspectRatio:false }. Without BOTH the chart stretches to fill the page and renders unreadable. For value axes set scales.y.beginAtZero:true.
-- KPI fallback: if a result is a single row OR a single numeric value, render a big KPI tile (a ~34px bold number + a muted label) instead of an empty chart. Never render "No data" when rows exist.
+- Layout: use Tailwind grid classes — \`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4\`. Each card: \`bg-[#1e293b] border border-[#334155] rounded-xl p-5 shadow-lg shadow-black/20 transition-all duration-200 hover:shadow-xl hover:border-[#475569]\`. Give each card a title (\`text-[#e2e8f0] font-semibold text-sm\`) and, when an insight is provided, a small muted caption (\`text-[#94a3b8] text-xs mt-2\`).
+- Theme: page bg #0f172a (host provides this). Card bg #1e293b, borders #334155, text #e2e8f0, muted #94a3b8. Chart axes/gridlines should use #94a3b8 / #1e293b. Series colors cycle through ["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"].
+- Sizing (CRITICAL — get this exactly right): NEVER place a bare <canvas> in the card. ALWAYS wrap it: <div class="relative" style="height:260px"><canvas></canvas></div>, and ALWAYS pass Chart.js options { responsive:true, maintainAspectRatio:false }. Without BOTH the chart stretches to fill the page and renders unreadable. For value axes set scales.y.beginAtZero:true.
+- KPI fallback: if a result is a single row OR a single numeric value, render a big KPI tile — number: \`text-4xl font-bold\` in the series color, unit label: \`text-sm text-[#94a3b8] mt-1\`. Never render "No data" when rows exist.
+- Polish: add subtle hover transitions on cards (already in the card classes above). Use \`backdrop-blur-sm\` on the dashboard header if present. Doughnut charts should have a subtle center cutout label (total or percentage).
 - Be defensive: coerce numeric-looking strings with Number(), and guard against missing/empty arrays so the dashboard always renders something meaningful.`;
 
 export const DASHBOARD_DATA_CONTRACT = `DATA — the rows you must visualize are shown below under "DASHBOARD DATA" and are ALSO available to your inline script as the global \`DASHBOARD_DATA\`, with this shape:
@@ -50,10 +52,10 @@ Render one card per entry in DASHBOARD_DATA.charts, using plan.type/x/y to pick 
 // a fast model produces a correct, polished dashboard. This is the in-prompt "base
 // example"; the same string could later be stored/retrieved from a DB examples
 // table without changing the agents.
-export const DASHBOARD_EXAMPLE = `<div id="hive-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px"></div>
+export const DASHBOARD_EXAMPLE = `<div id="hive-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
 <script>
 (function () {
-  const PALETTE = ["#4ade80","#60a5fa","#f59e0b","#f472b6","#22d3ee","#a78bfa"];
+  const PALETTE = ["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"];
   const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
   const grid = document.getElementById("hive-grid");
   const charts = (window.DASHBOARD_DATA && window.DASHBOARD_DATA.charts) || [];
@@ -61,9 +63,9 @@ export const DASHBOARD_EXAMPLE = `<div id="hive-grid" style="display:grid;grid-t
   charts.forEach((c, idx) => {
     const rows = Array.isArray(c.rows) ? c.rows : [];
     const card = document.createElement("div");
-    card.style.cssText = "background:#11151f;border:1px solid #232a36;border-radius:12px;padding:16px 18px;box-shadow:0 1px 2px rgba(0,0,0,.4)";
+    card.className = "bg-[#1e293b] border border-[#334155] rounded-xl p-5 shadow-lg shadow-black/20 transition-all duration-200 hover:shadow-xl hover:border-[#475569]";
     const title = document.createElement("h3");
-    title.style.cssText = "margin:0 0 8px;font-size:15px;color:#e6e6e6;font-weight:600";
+    title.className = "text-[#e2e8f0] font-semibold text-sm mb-2";
     title.textContent = (c.plan && c.plan.title) || c.question || "Result";
     card.appendChild(title);
 
@@ -75,20 +77,21 @@ export const DASHBOARD_EXAMPLE = `<div id="hive-grid" style="display:grid;grid-t
     const isKpi = /kpi|stat|single|value|number/i.test(planType) || (rows.length === 1 && yKey);
     if (isKpi && yKey) {
       const kpi = document.createElement("div");
-      kpi.style.cssText = "font-size:34px;font-weight:700;color:" + PALETTE[idx % PALETTE.length];
+      kpi.className = "text-4xl font-bold mt-2";
+      kpi.style.color = PALETTE[idx % PALETTE.length];
       kpi.textContent = Number(rows[0][yKey]).toLocaleString();
       const lbl = document.createElement("div");
-      lbl.style.cssText = "color:#8b95a5;font-size:13px;margin-top:4px";
+      lbl.className = "text-[#94a3b8] text-sm mt-1";
       lbl.textContent = yKey;
       card.appendChild(kpi); card.appendChild(lbl);
     } else if (yKey) {
       const wrap = document.createElement("div");
-      wrap.style.cssText = "position:relative;height:260px";
+      wrap.className = "relative";
+      wrap.style.height = "260px";
       const canvas = document.createElement("canvas");
       wrap.appendChild(canvas); card.appendChild(wrap);
       const type = /pie|doughnut|donut/i.test(planType) ? "doughnut"
         : /line|trend|time|date/i.test(planType) ? "line" : "bar";
-      // Format date-like x values (ISO timestamps, dates) to short readable labels.
       const isDate = rows.length > 0
         && rows.every((r) => !isNaN(Date.parse(r[xKey])))
         && /[-/:T]/.test(String(rows[0][xKey]));
@@ -102,14 +105,14 @@ export const DASHBOARD_EXAMPLE = `<div id="hive-grid" style="display:grid;grid-t
           label: yKey, data: values,
           backgroundColor: type === "line" ? "transparent" : colors,
           borderColor: type === "line" ? PALETTE[idx % PALETTE.length] : colors,
-          tension: 0.3, fill: false, pointRadius: type === "line" ? 3 : 0
+          borderRadius: 6, tension: 0.3, fill: false, pointRadius: type === "line" ? 3 : 0
         }] },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: type === "doughnut", labels: { color: "#e6e6e6" } } },
+          plugins: { legend: { display: type === "doughnut", labels: { color: "#e2e8f0" } } },
           scales: type === "doughnut" ? {} : {
-            x: { ticks: { color: "#8b95a5", maxRotation: 0, autoSkip: true }, grid: { color: "#232a36" } },
-            y: { beginAtZero: true, ticks: Object.assign({ color: "#8b95a5" }, allInt ? { precision: 0 } : {}), grid: { color: "#232a36" } }
+            x: { ticks: { color: "#94a3b8", maxRotation: 0, autoSkip: true }, grid: { color: "#1e293b" } },
+            y: { beginAtZero: true, ticks: Object.assign({ color: "#94a3b8" }, allInt ? { precision: 0 } : {}), grid: { color: "#1e293b" } }
           }
         }
       });
@@ -117,7 +120,7 @@ export const DASHBOARD_EXAMPLE = `<div id="hive-grid" style="display:grid;grid-t
 
     if (c.insight) {
       const cap = document.createElement("div");
-      cap.style.cssText = "color:#8b95a5;font-size:12px;margin-top:8px";
+      cap.className = "text-[#94a3b8] text-xs mt-2";
       cap.textContent = c.insight;
       card.appendChild(cap);
     }

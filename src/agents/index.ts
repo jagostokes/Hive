@@ -78,3 +78,7 @@ export {
   type ResearchInput,
   type ResearchResult,
 } from "./glossaryGrowth.js";
+export {
+  polishDashboard,
+  type PolishResult,
+} from "./dashboardPolish.js";

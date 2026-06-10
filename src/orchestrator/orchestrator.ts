@@ -17,6 +17,7 @@ import {
   runDashboardPlanAgent,
   runCodeGenAgent,
   runCodeEditAgent,
+  polishDashboard,
   type Plan,
   type PlanNode,
 } from "../agents/index.js";
@@ -132,6 +133,8 @@ export interface BrainResult {
     html: string;
     renderOk: boolean;
     codeEditUsed: boolean;
+    /** Whether the cheap polish pass was applied to the dashboard. */
+    polished: boolean;
   } | null;
   server: DashboardServer | null;
   ledger: LedgerEntry[];
@@ -407,6 +410,17 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
     }
   }
 
+  // 5b. Polish pass: cheap V4 Flash call to improve visual design without
+  //     touching data bindings. Only runs when we have a working dashboard.
+  let polished = false;
+  if (renderOk) {
+    const tPolish = Date.now();
+    const polish = await polishDashboard(code);
+    polished = polish.polished;
+    if (polish.polished) code = polish.code;
+    brainLog(`polish ${Date.now() - tPolish}ms (applied=${polished})`);
+  }
+
   // 6. Serve on localhost and return the brain ledger.
   const html = buildDashboardHtml(code, view, `Hive — ${question}`);
   const server = opts.serve === false ? null : await serveDashboard(html, { port: opts.port ?? 0 });
@@ -417,7 +431,7 @@ export async function runBrainLane(question: string, opts: BrainOptions = {}): P
     plan,
     lanes,
     cacheHits,
-    dashboard: { spec, code, html, renderOk, codeEditUsed },
+    dashboard: { spec, code, html, renderOk, codeEditUsed, polished },
     server,
     ledger: getLedger(),
     totals: getTotals(),

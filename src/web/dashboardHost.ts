@@ -61,16 +61,33 @@ export function buildDashboardHtml(modelOutput: string, data: unknown, title = "
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(title)}</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          'hive-bg': '#0f172a',
+          'hive-card': '#1e293b',
+          'hive-border': '#334155',
+          'hive-text': '#e2e8f0',
+          'hive-muted': '#94a3b8',
+        }
+      }
+    }
+  }
+</script>
 <style>
-  body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 0; background: #0b0e14; color: #e6e6e6; }
-  header { padding: 16px 24px; border-bottom: 1px solid #232a36; font-weight: 600; }
+  body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+  header { padding: 16px 24px; border-bottom: 1px solid #334155; font-weight: 600; backdrop-filter: blur(8px); }
   #hive-root { padding: 24px; }
-  .hive-card { background: #11151f; border: 1px solid #232a36; border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(0,0,0,.4); }
-  .hive-card h3 { margin: 0 0 8px; font-size: 15px; color: #e6e6e6; }
-  .hive-kpi { font-size: 34px; font-weight: 700; color: #4ade80; }
-  .hive-muted { color: #8b95a5; font-size: 13px; margin-top: 4px; }
-  .hive-error { color: #ff6b6b; white-space: pre-wrap; padding: 16px; }
+  .hive-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,.3), 0 2px 4px -2px rgba(0,0,0,.2); transition: all 0.2s; }
+  .hive-card:hover { box-shadow: 0 10px 15px -3px rgba(0,0,0,.4); border-color: #475569; }
+  .hive-card h3 { margin: 0 0 8px; font-size: 14px; color: #e2e8f0; font-weight: 600; }
+  .hive-kpi { font-size: 2.25rem; font-weight: 700; color: #6366f1; }
+  .hive-muted { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+  .hive-error { color: #f87171; white-space: pre-wrap; padding: 16px; }
   canvas { max-width: 100%; }
 </style>
 </head>
@@ -82,7 +99,7 @@ ${fragment}
 </div>
 <script>
 (function () {
-  var PALETTE = ["#4ade80","#60a5fa","#f59e0b","#f472b6","#22d3ee","#a78bfa"];
+  var PALETTE = ["#6366f1","#8b5cf6","#ec4899","#f59e0b","#10b981","#3b82f6"];
   function num(v) { var n = Number(v); return isFinite(n) ? n : null; }
   function fallback() {
     var data = window.DASHBOARD_DATA;
@@ -123,8 +140,8 @@ ${fragment}
               backgroundColor: rows.map(function (_, i) { return PALETTE[i % PALETTE.length]; }) }]
           },
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-            scales: { x: { ticks: { color: "#8b95a5" }, grid: { color: "#232a36" } },
-              y: { ticks: { color: "#8b95a5" }, grid: { color: "#232a36" } } } }
+            scales: { x: { ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } },
+              y: { ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } } } }
         });
       } else {
         var pre = document.createElement("pre"); pre.className = "hive-muted";
