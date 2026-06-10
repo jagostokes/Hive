@@ -9,7 +9,13 @@ import type { Pool } from "pg";
 // The app's own infrastructure tables. Excluded from the *domain* schema the
 // agents reason over. These are infra names known to this layer, not domain
 // assumptions.
-const INTERNAL_TABLES = ["query_cache", "business_glossary"];
+const INTERNAL_TABLES = [
+  "query_cache",
+  "business_glossary",
+  "prompt_versions",
+  "learned_examples",
+  "synthesized_verifiers",
+];
 
 // A schema with at most this many tables is cheap enough to hand to the SQL
 // agent whole; above it we filter to the relevant tables.

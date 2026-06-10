@@ -12,3 +12,21 @@ export {
   type QueryResultLike,
   type ResultSchema,
 } from "./verifiers.js";
+
+// Verifier genesis (recursive testing): the system that grows new tests.
+export {
+  synthesizeVerifier,
+  validatePredicate,
+  performGenesis,
+  runSynthesizedVerifiers,
+  saveSynthesizedVerifier,
+  loadActiveVerifiers,
+  loadAllVerifiers,
+  recordVerifierOutcome,
+  deactivateVerifier,
+  type SynthesizedVerifier,
+  type GenesisInput,
+  type GenesisResult,
+  type ValidationResult,
+  type SynthesizedCheckResult,
+} from "./verifierGenesis.js";

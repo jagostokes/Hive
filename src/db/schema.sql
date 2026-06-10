@@ -53,3 +53,20 @@ create table if not exists learned_examples (
   good_output   text not null,               -- the escalation model's accepted output
   created_at    timestamptz default now()
 );
+
+-- Synthesized verifiers (verifier genesis / recursive testing): when an existing
+-- verifier misses a failure, a meta-agent writes a new JS predicate function and
+-- stores it here. Active predicates run alongside the built-in verifiers on
+-- every future check. The system literally grows new tests for itself.
+create table if not exists synthesized_verifiers (
+  id             bigserial primary key,
+  stage          text not null,              -- 'sql' | 'insight' | 'plan' | 'render'
+  name           text not null,              -- human-readable check name
+  failure_class  text not null,              -- what class of failure it catches
+  predicate_code text not null,              -- JS function body
+  validated      boolean default false,      -- passed dry-run against known failure?
+  active         boolean default false,      -- run on every future check?
+  fire_count     bigint default 0,           -- times it caught a failure
+  pass_count     bigint default 0,           -- times it ran without firing
+  created_at     timestamptz default now()
+);
