@@ -10,6 +10,7 @@ import { HoneyDrop } from "../components/sprites/HoneyDrop";
 interface LandingProps {
   onEnter: () => void;
   onReadThesis: () => void;
+  onTrain: () => void;
 }
 
 const FADE_UP = {
@@ -17,7 +18,7 @@ const FADE_UP = {
   animate: { opacity: 1, y: 0 },
 };
 
-export function Landing({ onEnter, onReadThesis }: LandingProps): JSX.Element {
+export function Landing({ onEnter, onReadThesis, onTrain }: LandingProps): JSX.Element {
   return (
     <main
       style={{
@@ -110,22 +111,40 @@ export function Landing({ onEnter, onReadThesis }: LandingProps): JSX.Element {
           specific prompt structure.
         </motion.p>
 
-        <motion.button
+        <motion.div
           {...FADE_UP}
           transition={{ delay: 0.8, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          onClick={onReadThesis}
-          style={{
-            fontFamily: "var(--font-display)",
-            fontStyle: "italic",
-            fontSize: 15,
-            color: "var(--bark-soft)",
-            borderBottom: "1px solid var(--line)",
-            paddingBottom: 2,
-            letterSpacing: "0.01em",
-          }}
+          style={{ display: "flex", gap: 24, alignItems: "center" }}
         >
-          read the thesis &nbsp;→
-        </motion.button>
+          <button
+            onClick={onReadThesis}
+            style={{
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 15,
+              color: "var(--bark-soft)",
+              borderBottom: "1px solid var(--line)",
+              paddingBottom: 2,
+              letterSpacing: "0.01em",
+            }}
+          >
+            read the thesis &nbsp;→
+          </button>
+          <button
+            onClick={onTrain}
+            style={{
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 15,
+              color: "var(--bark-soft)",
+              borderBottom: "1px solid var(--line)",
+              paddingBottom: 2,
+              letterSpacing: "0.01em",
+            }}
+          >
+            training loop &nbsp;→
+          </button>
+        </motion.div>
 
         <motion.div
           {...FADE_UP}

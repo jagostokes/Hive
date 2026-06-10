@@ -101,3 +101,102 @@ export async function fetchThesis(): Promise<string> {
   if (!r.ok) throw new Error(`/api/thesis failed: ${r.status}`);
   return r.text();
 }
+
+// --- Prompt edition ---
+
+export interface PromptEdition {
+  generation: number;
+  diagnosis: string | null;
+  winRate: number | null;
+  createdAt: string | null;
+}
+
+export async function fetchPromptEdition(): Promise<PromptEdition> {
+  const r = await fetch("/api/prompt-edition");
+  if (!r.ok) throw new Error(`/api/prompt-edition failed: ${r.status}`);
+  return r.json();
+}
+
+// --- Training ---
+
+export interface TrainingMetricEvent {
+  type: "question_start" | "question_result" | "training_complete" | "prompt_evolved";
+  questionIndex: number;
+  totalQuestions: number;
+  question?: string;
+  style?: string;
+  success?: boolean;
+  firstAttemptPass?: boolean;
+  escalationUsed?: boolean;
+  attempts?: number;
+  totalTokens?: number;
+  costUsd?: number;
+  promptGeneration?: number;
+  promptSurgeryTriggered?: boolean;
+  glossaryTermsAdded?: string[];
+  learnedExampleStored?: boolean;
+  elapsedMs?: number;
+  failureReason?: string;
+  summary?: {
+    questionsRun: number;
+    overallSuccessRate: number;
+    firstAttemptPassRate: number;
+    escalationRate: number;
+    totalTokens: number;
+    totalCostUsd: number;
+    promptSurgeries: number;
+    glossaryTermsLearned: number;
+    learnedExamples: number;
+    firstTenSuccessRate: number;
+    lastTenSuccessRate: number;
+    firstTenAvgTokens: number;
+    lastTenAvgTokens: number;
+  };
+  diagnosis?: string;
+  newGeneration?: number;
+}
+
+export interface TrainingStatus {
+  active: boolean;
+  activeId: string | null;
+  runs: Array<{ id: string; status: string; startedAt: string; questionsRun: number }>;
+}
+
+export async function fetchTrainingStatus(): Promise<TrainingStatus> {
+  const r = await fetch("/api/train/status");
+  if (!r.ok) throw new Error(`/api/train/status failed: ${r.status}`);
+  return r.json();
+}
+
+export async function startTraining(questions?: number): Promise<string> {
+  const r = await fetch("/api/train/start", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ questions: questions ?? 75 }),
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: `status ${r.status}` }));
+    throw new Error(err.error ?? `failed: ${r.status}`);
+  }
+  const data = (await r.json()) as { runId: string };
+  return data.runId;
+}
+
+export function subscribeTraining(
+  runId: string,
+  onEvent: (e: TrainingMetricEvent) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  const es = new EventSource(`/api/train/${runId}/events`);
+  es.onmessage = (msg) => {
+    try {
+      onEvent(JSON.parse(msg.data));
+    } catch (err) {
+      onError?.(err as Error);
+    }
+  };
+  es.onerror = () => {
+    onError?.(new Error("training event stream interrupted"));
+  };
+  return () => es.close();
+}

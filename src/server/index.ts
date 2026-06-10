@@ -28,6 +28,16 @@ import { runBrainLane } from "../orchestrator/index.js";
 import { runBaselineLane } from "../baseline/index.js";
 import { MODELS, type ModelRole } from "../../config/models.js";
 import { runStore, type LaneId } from "./runStore.js";
+import {
+  getPromptEdition,
+  startTraining,
+  getTrainingRun,
+  listTrainingRuns,
+  isTrainingActive,
+  getActiveTrainingId,
+  trainingEmitter,
+  type TrainingMetricEvent,
+} from "./trainingApi.js";
 
 const app = new Hono();
 app.use("*", cors());
@@ -260,6 +270,86 @@ function prettyModelLabel(slug: string): string {
     .replace(/\b\w/g, (m) => m.toUpperCase())
     .replace(/\b(\d+)b\b/gi, "$1B");
 }
+
+// --- Prompt edition ---
+
+app.get("/api/prompt-edition", async (c) => {
+  try {
+    const edition = await getPromptEdition();
+    return c.json(edition ?? { generation: 0, diagnosis: null, winRate: null, createdAt: null });
+  } catch {
+    return c.json({ generation: 0, diagnosis: null, winRate: null, createdAt: null });
+  }
+});
+
+// --- Training endpoints ---
+
+app.post("/api/train/start", async (c) => {
+  if (isTrainingActive()) {
+    return c.json({ error: "Training already in progress", activeId: getActiveTrainingId() }, 409);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as { questions?: number };
+  const numQuestions = Math.min(body.questions ?? 75, 75);
+  try {
+    const id = startTraining(numQuestions);
+    return c.json({ runId: id });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+app.get("/api/train/status", (c) => {
+  return c.json({
+    active: isTrainingActive(),
+    activeId: getActiveTrainingId(),
+    runs: listTrainingRuns(),
+  });
+});
+
+app.get("/api/train/:id/events", (c) => {
+  const id = c.req.param("id");
+  const run = getTrainingRun(id);
+  if (!run) return c.json({ error: "unknown training run" }, 404);
+
+  return streamSSE(c, async (stream) => {
+    let closed = false;
+
+    // Replay existing events (in case client connected after start)
+    for (const ev of run.metrics) {
+      await stream.writeSSE({ data: JSON.stringify(ev) });
+    }
+
+    // Listen for new events
+    const listener = async (event: TrainingMetricEvent): Promise<void> => {
+      if (closed) return;
+      await stream.writeSSE({ data: JSON.stringify(event) });
+    };
+    trainingEmitter.on(`train:${id}`, listener);
+
+    stream.onAbort(() => {
+      closed = true;
+      trainingEmitter.off(`train:${id}`, listener);
+    });
+
+    // Keep alive until training completes
+    while (!closed) {
+      const current = getTrainingRun(id);
+      if (!current || current.status !== "running") break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    trainingEmitter.off(`train:${id}`, listener);
+  });
+});
+
+app.get("/api/train/:id/report", (c) => {
+  const id = c.req.param("id");
+  const run = getTrainingRun(id);
+  if (!run) return c.json({ error: "unknown training run" }, 404);
+  return c.json(run);
+});
+
+// --- Server start ---
 
 const port = Number(process.env.HIVE_UI_PORT ?? 4317);
 serve({ fetch: app.fetch, port }, (info) => {
