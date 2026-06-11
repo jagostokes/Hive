@@ -90,6 +90,33 @@ order by question_index;
 ```
 
 ```sql
+-- [cell: review_trajectory] ⭐ HERO LINE — rolling-avg review score climbs as the
+-- prompt evolves. Per-generation averages look noisy because each generation is
+-- BORN from a low-scoring question; smoothing by question order shows the real
+-- upward trajectory. Plot rolling_avg_review (and optionally raw review_score).
+select question_index, review_score,
+       round(avg(review_score::numeric) over (order by question_index
+             rows between 9 preceding and current row), 3) as rolling_avg_review
+from training_metrics
+where run_id = (select id from training_runs order by started_at desc limit 1)
+  and review_score is not null
+order by question_index;
+```
+
+```sql
+-- [cell: self_improvement] ⭐ HERO STEP/AREA — the system builds itself. As it
+-- processes questions it keeps rewriting its own sqlGen prompt, and each rewrite
+-- is paired with a freshly synthesized test. `prompt_generation` is the count of
+-- self-rewrites so far (genesis fires 1:1 with surgery, so it equals cumulative
+-- tests written too). This is the honest "it gets smarter" curve — only ever up.
+select question_index,
+       prompt_generation as self_improvements_so_far
+from training_metrics
+where run_id = (select id from training_runs order by started_at desc limit 1)
+order by question_index;
+```
+
+```sql
 -- [cell: review_quality]  LINE — reviewer score per question + the prompt
 -- generation active at the time. Dips below 0.8 are what trigger surgery; the
 -- generation should step up right after a dip and scores recover after.
@@ -120,7 +147,7 @@ select dataset, questions_run,
        round((first_attempt_rate*100)::numeric,1)  as first_attempt_pct,
        round((escalation_rate*100)::numeric,1)     as escalation_pct,
        total_tokens, total_cost_usd, prompt_surgeries, review_surgeries,
-       glossary_terms_added, learned_examples_stored
+       synthesized_verifiers, glossary_terms_added, learned_examples_stored
 from training_runs order by started_at desc limit 1;
 ```
 
