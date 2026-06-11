@@ -282,6 +282,72 @@ app.get("/api/prompt-edition", async (c) => {
   }
 });
 
+// --- Synchronous ask (for embedding Hive in external tools, e.g. Hex) ---
+//
+// POST /api/ask { question, baseline? } -> runs the brain lane (and optionally
+// the baseline lane) to completion and returns ONE JSON payload: the generated
+// SQL + rows + insight per sub-question, the rendered dashboard HTML, and the
+// brain-vs-baseline cost. Unlike /api/run (which streams over SSE for the live
+// UI), this blocks until done so a notebook cell can `requests.post(...)` and
+// read the result directly. Baseline is opt-in because it fires the expensive
+// flagship model — leave it off to keep per-call cost minimal.
+app.post("/api/ask", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    question?: string;
+    baseline?: boolean;
+  };
+  const question = (body.question ?? "").trim();
+  if (!question) return c.json({ error: "question required" }, 400);
+
+  resetLedger();
+
+  const brain = await runBrainLane(question, { serve: false, freshLedger: false });
+  const baseline = body.baseline === true ? await runBaselineLane(question) : null;
+
+  const totals = getTotals();
+  const edition = await getPromptEdition().catch(() => null);
+
+  const brainCost = totals.byLane.brain.costUsd;
+  const baselineCost = totals.byLane.baseline.costUsd;
+  const savingsPct =
+    baseline && baselineCost > 0
+      ? Math.round(((baselineCost - brainCost) / baselineCost) * 1000) / 10
+      : null;
+
+  return c.json({
+    question,
+    ok: brain.ok,
+    promptGeneration: edition?.generation ?? 0,
+    cacheHits: brain.cacheHits,
+    brain: {
+      ok: brain.ok,
+      costUsd: brainCost,
+      tokens: totals.byLane.brain.promptTokens + totals.byLane.brain.completionTokens,
+      charts: brain.lanes.map((l) => ({
+        question: l.question,
+        sql: l.sql ?? null,
+        insight: l.insight ?? null,
+        rows: l.rows ?? [],
+      })),
+      dashboardHtml: brain.dashboard?.html ?? null,
+      ...(brain.reason ? { reason: brain.reason } : {}),
+    },
+    ...(baseline
+      ? {
+          baseline: {
+            ok: baseline.renderOk,
+            costUsd: baselineCost,
+            tokens:
+              totals.byLane.baseline.promptTokens + totals.byLane.baseline.completionTokens,
+            dashboardHtml: baseline.html ?? null,
+            ...(baseline.reason ? { reason: baseline.reason } : {}),
+          },
+          savingsPct,
+        }
+      : {}),
+  });
+});
+
 // --- Training endpoints ---
 
 app.post("/api/train/start", async (c) => {
