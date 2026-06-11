@@ -70,7 +70,8 @@ create table if not exists training_runs (
   total_cost_usd  real default 0,
   prompt_surgeries integer default 0,
   glossary_terms_added integer default 0,
-  learned_examples_stored integer default 0
+  learned_examples_stored integer default 0,
+  review_surgeries integer default 0   -- surgeries triggered by the review agent
 );
 
 -- Training metrics: per-question results within a training run.
@@ -88,6 +89,7 @@ create table if not exists training_metrics (
   attempts          integer not null,
   prompt_generation integer,           -- which prompt gen was active
   failure_reason    text,
+  review_score      real,               -- reviewer quality score (0..1), null if not reviewed
   elapsed_ms        integer,
   created_at        timestamptz default now()
 );

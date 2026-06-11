@@ -26,6 +26,8 @@ import {
   storeLearnedExample,
 } from "../agents/glossaryGrowth.js";
 import { runSqlAgent } from "../agents/sqlAgent.js";
+import { runReviewAgent } from "../agents/reviewAgent.js";
+import { REVIEW_POLICY } from "../../config/models.js";
 import { getLedger, resetLedger } from "../models/index.js";
 
 // ---------------------------------------------------------------------------
@@ -47,6 +49,8 @@ export interface TrainingMetricEvent {
   costUsd?: number;
   promptGeneration?: number;
   promptSurgeryTriggered?: boolean;
+  reviewScore?: number;
+  reviewSurgeryTriggered?: boolean;
   glossaryTermsAdded?: string[];
   learnedExampleStored?: boolean;
   elapsedMs?: number;
@@ -66,6 +70,7 @@ interface TrainingSummary {
   totalTokens: number;
   totalCostUsd: number;
   promptSurgeries: number;
+  reviewSurgeries: number;
   glossaryTermsLearned: number;
   learnedExamples: number;
   firstTenSuccessRate: number;
@@ -179,12 +184,20 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
   const context = await buildContext(dataPool, pool);
   const run = trainingRuns.get(runId)!;
 
+  // Compact schema string for grounding the review agent (built once).
+  const reviewSchema = await introspectSchema(dataPool);
+  const reviewSchemaStr = reviewSchema.tables
+    .map((t) => `${t.name}(${t.columns.map((c) => c.name).join(", ")})`)
+    .join("; ");
+  let lastReviewSurgeryIndex = -Infinity;
+
   let successCount = 0;
   let firstAttemptCount = 0;
   let escalationCount = 0;
   let totalTokens = 0;
   let totalCost = 0;
   let surgeryCount = 0;
+  let reviewSurgeryCount = 0;
   let glossaryCount = 0;
   let exampleCount = 0;
 
@@ -215,6 +228,8 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
     let attempts = 0;
     let failureReason: string | undefined;
     let promptSurgeryTriggered = false;
+    let reviewSurgeryTriggered = false;
+    let reviewScore: number | undefined;
     let glossaryTermsAdded: string[] = [];
     let learnedExampleStored = false;
 
@@ -299,6 +314,59 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
         }
       }
 
+      // Review Agent: critique queries that PASSED the verifier, and fire prompt
+      // surgery when quality is low (with a cooldown) so the prompt evolves on
+      // quality, not just on hard failure.
+      if (REVIEW_POLICY.enabled && sqlResult.ok) {
+        try {
+          const review = await runReviewAgent({
+            question: q.question,
+            sql: sqlResult.data.sql,
+            rows: sqlResult.data.rows,
+            schema: reviewSchemaStr,
+          });
+          reviewScore = review.score;
+
+          const belowBar =
+            review.score < REVIEW_POLICY.surgeryThreshold && review.shouldRevise;
+          const cooledDown =
+            i - lastReviewSurgeryIndex >= REVIEW_POLICY.surgeryCooldown;
+          if (belowBar && cooledDown && !promptSurgeryTriggered) {
+            const currentPrompt = latestPrompt?.systemPrompt ??
+              "You are a SQL generation agent. Generate read-only PostgreSQL SQL for the given question.";
+            await performSurgery(pool, {
+              role: "sqlGen",
+              currentPrompt,
+              userMessage: q.question,
+              rejectedOutput: sqlResult.data.sql,
+              verifierReason:
+                `Review score ${review.score.toFixed(2)} (< ${REVIEW_POLICY.surgeryThreshold}). ` +
+                `${review.critique}` +
+                (review.issues.length ? ` [issues: ${review.issues.join(", ")}]` : ""),
+            });
+            promptSurgeryTriggered = true;
+            reviewSurgeryTriggered = true;
+            surgeryCount++;
+            reviewSurgeryCount++;
+            lastReviewSurgeryIndex = i;
+
+            const newPrompt = await loadLatestPrompt(pool, "sqlGen");
+            if (newPrompt) {
+              const evolveEvent: TrainingMetricEvent = {
+                type: "prompt_evolved",
+                questionIndex: i + 1,
+                totalQuestions: questions.length,
+                diagnosis: newPrompt.diagnosis ?? undefined,
+                newGeneration: newPrompt.generation,
+                promptGeneration: newPrompt.generation,
+              };
+              run.metrics.push(evolveEvent);
+              trainingEmitter.emit(`train:${runId}`, evolveEvent);
+            }
+          }
+        } catch {}
+      }
+
       // Emit question_result
       const resultEvent: TrainingMetricEvent = {
         type: "question_result",
@@ -314,6 +382,8 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
         costUsd: qCost,
         promptGeneration: promptGen,
         promptSurgeryTriggered,
+        ...(reviewScore !== undefined ? { reviewScore } : {}),
+        reviewSurgeryTriggered,
         glossaryTermsAdded,
         learnedExampleStored,
         elapsedMs: Date.now() - t0,
@@ -366,6 +436,7 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
     totalTokens,
     totalCostUsd: totalCost,
     promptSurgeries: surgeryCount,
+    reviewSurgeries: reviewSurgeryCount,
     glossaryTermsLearned: glossaryCount,
     learnedExamples: exampleCount,
     firstTenSuccessRate: first10.length > 0

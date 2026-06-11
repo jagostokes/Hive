@@ -37,6 +37,8 @@ import {
   storeLearnedExample,
 } from "../src/agents/glossaryGrowth.js";
 import { runSqlAgent, type SqlAgentResult } from "../src/agents/sqlAgent.js";
+import { runReviewAgent } from "../src/agents/reviewAgent.js";
+import { REVIEW_POLICY } from "../config/models.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -66,6 +68,9 @@ interface QuestionMetrics {
   failureReason?: string;
   // Prompt state
   promptGeneration: number; // which generation of the system prompt was active
+  // Review (LLM-as-judge over accepted results)
+  reviewScore?: number; // quality score 0..1, undefined if not reviewed
+  reviewSurgeryTriggered: boolean; // review critique fired a prompt surgery
   // Learning triggered
   promptSurgeryTriggered: boolean;
   glossaryTermsAdded: string[];
@@ -104,6 +109,8 @@ interface TrainingReport {
     avgCostPerQuestion: number;
     glossaryTermsLearned: number;
     promptSurgeries: number;
+    reviewSurgeries: number;
+    avgReviewScore: number | null;
     learnedExamples: number;
     // Improvement trajectory (first 3 vs last 3)
     firstTenSuccessRate: number;
@@ -179,7 +186,13 @@ function computeSummary(metrics: QuestionMetrics[]): TrainingReport["summary"] {
     0,
   );
   const surgeries = metrics.filter((m) => m.promptSurgeryTriggered).length;
+  const reviewSurgeries = metrics.filter((m) => m.reviewSurgeryTriggered).length;
   const examples = metrics.filter((m) => m.learnedExampleStored).length;
+  const reviewed = metrics.filter((m) => typeof m.reviewScore === "number");
+  const avgReviewScore =
+    reviewed.length > 0
+      ? reviewed.reduce((s, m) => s + (m.reviewScore ?? 0), 0) / reviewed.length
+      : null;
 
   const first10 = metrics.slice(0, Math.min(3, n));
   const last10 = metrics.slice(Math.max(0, n - 3));
@@ -203,6 +216,8 @@ function computeSummary(metrics: QuestionMetrics[]): TrainingReport["summary"] {
     avgCostPerQuestion: n > 0 ? totalCostUsd / n : 0,
     glossaryTermsLearned: glossaryTerms,
     promptSurgeries: surgeries,
+    reviewSurgeries,
+    avgReviewScore,
     learnedExamples: examples,
     firstTenSuccessRate: rate(first10),
     lastTenSuccessRate: rate(last10),
@@ -234,6 +249,15 @@ async function main(): Promise<void> {
 
   // Build context once: schema from the DATA db, glossary from the APP db.
   const context = await buildContext(dataPool, pool);
+
+  // Compact schema string, built once, used to ground the review agent.
+  const schemaForReview = await introspectSchema(dataPool);
+  const schemaStr = schemaForReview.tables
+    .map((t) => `${t.name}(${t.columns.map((c) => c.name).join(", ")})`)
+    .join("; ");
+
+  // Cooldown tracker: index of the last review-triggered surgery.
+  let lastReviewSurgeryIndex = -Infinity;
 
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
@@ -281,6 +305,7 @@ async function main(): Promise<void> {
         attempts: 0,
         failureReason: msg,
         promptGeneration: latestPrompt?.generation ?? 0,
+        reviewSurgeryTriggered: false,
         promptSurgeryTriggered: false,
         glossaryTermsAdded: [],
         learnedExampleStored: false,
@@ -310,6 +335,8 @@ async function main(): Promise<void> {
     let promptSurgeryTriggered = false;
     let glossaryTermsAdded: string[] = [];
     let learnedExampleStored = false;
+    let reviewScore: number | undefined;
+    let reviewSurgeryTriggered = false;
 
     if (!sqlResult.ok) {
       // 1. Prompt Surgery: rewrite the sqlGen system prompt
@@ -380,6 +407,59 @@ async function main(): Promise<void> {
       }
     }
 
+    // 4. Review Agent (LLM-as-judge): critique queries that PASSED the objective
+    //    verifier. A low score means the query "works" but answers the question
+    //    poorly — fire prompt surgery so the system prompt improves on quality,
+    //    not just on hard failure. A cooldown stops trivial nitpicks from
+    //    rewriting the prompt every question.
+    if (REVIEW_POLICY.enabled && sqlResult.ok) {
+      try {
+        const review = await runReviewAgent({
+          question: q.question,
+          sql: sqlResult.data.sql,
+          rows: sqlResult.data.rows,
+          schema: schemaStr,
+        });
+        reviewScore = review.score;
+        console.log(
+          `   🔎 Review score ${review.score.toFixed(2)}` +
+            (review.issues.length ? ` · issues: ${review.issues.join(", ")}` : ""),
+        );
+
+        const belowBar =
+          review.score < REVIEW_POLICY.surgeryThreshold && review.shouldRevise;
+        const cooledDown =
+          i - lastReviewSurgeryIndex >= REVIEW_POLICY.surgeryCooldown;
+        if (belowBar && cooledDown && !promptSurgeryTriggered) {
+          console.log(`   🔧 Review-triggered prompt surgery...`);
+          const currentPrompt = await loadLatestPrompt(pool, "sqlGen");
+          const promptText =
+            currentPrompt?.systemPrompt ??
+            "You are a SQL generation agent. Generate read-only PostgreSQL SQL for the given question.";
+          await performSurgery(pool, {
+            role: "sqlGen",
+            currentPrompt: promptText,
+            userMessage: q.question,
+            rejectedOutput: sqlResult.data.sql,
+            verifierReason:
+              `Review score ${review.score.toFixed(2)} (< ${REVIEW_POLICY.surgeryThreshold}). ` +
+              `${review.critique}` +
+              (review.issues.length ? ` [issues: ${review.issues.join(", ")}]` : ""),
+          });
+          reviewSurgeryTriggered = true;
+          promptSurgeryTriggered = true;
+          lastReviewSurgeryIndex = i;
+          console.log(`   🔧 Review surgery complete (new generation saved)`);
+        } else if (belowBar && !cooledDown) {
+          console.log(`   ⏳ Below bar but in surgery cooldown — skipping rewrite`);
+        }
+      } catch (err) {
+        console.log(
+          `   🔎 Review failed: ${err instanceof Error ? err.message : err}`,
+        );
+      }
+    }
+
     allMetrics.push({
       questionId: q.id,
       question: q.question,
@@ -394,6 +474,8 @@ async function main(): Promise<void> {
       attempts: sqlResult.attempts.length,
       ...(sqlResult.ok ? {} : { failureReason: sqlResult.reason }),
       promptGeneration: latestPrompt?.generation ?? 0,
+      ...(reviewScore !== undefined ? { reviewScore } : {}),
+      reviewSurgeryTriggered,
       promptSurgeryTriggered,
       glossaryTermsAdded,
       learnedExampleStored,
@@ -463,8 +545,8 @@ async function main(): Promise<void> {
          (started_at, finished_at, dataset, questions_total, questions_run,
           success_rate, first_attempt_rate, escalation_rate,
           total_tokens, total_cost_usd, prompt_surgeries,
-          glossary_terms_added, learned_examples_stored)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          glossary_terms_added, learned_examples_stored, review_surgeries)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING id`,
       [
         report.startedAt, report.finishedAt, report.dataset,
@@ -473,6 +555,7 @@ async function main(): Promise<void> {
         report.summary.escalationRate, report.summary.totalTokens,
         report.summary.totalCostUsd, report.summary.promptSurgeries,
         report.summary.glossaryTermsLearned, report.summary.learnedExamples,
+        report.summary.reviewSurgeries,
       ],
     );
     const runId = runRows[0].id;
@@ -484,14 +567,15 @@ async function main(): Promise<void> {
         `INSERT INTO training_metrics
            (run_id, question_index, question_text, style,
             total_tokens, cost_usd, sql_success, first_attempt_pass,
-            escalation_used, attempts, prompt_generation, failure_reason, elapsed_ms)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+            escalation_used, attempts, prompt_generation, failure_reason,
+            review_score, elapsed_ms)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
         [
           runId, idx + 1, m.question, m.style,
           m.totalTokens, m.costUsd, m.sqlSuccess, m.firstAttemptPass,
           m.escalationUsed, m.attempts,
           m.promptGeneration,
-          m.failureReason ?? null, m.elapsedMs,
+          m.failureReason ?? null, m.reviewScore ?? null, m.elapsedMs,
         ],
       );
     }
@@ -534,6 +618,10 @@ async function main(): Promise<void> {
   );
   console.log(`\n🔧 Self-improvement actions:`);
   console.log(`   Prompt surgeries: ${report.summary.promptSurgeries}`);
+  console.log(`     ↳ review-triggered: ${report.summary.reviewSurgeries}`);
+  console.log(
+    `   Avg review score: ${report.summary.avgReviewScore !== null ? report.summary.avgReviewScore.toFixed(2) : "n/a"}`,
+  );
   console.log(`   Glossary terms learned: ${report.summary.glossaryTermsLearned}`);
   console.log(`   Learned examples stored: ${report.summary.learnedExamples}`);
   console.log(

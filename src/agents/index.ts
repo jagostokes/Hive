@@ -82,3 +82,8 @@ export {
   polishDashboard,
   type PolishResult,
 } from "./dashboardPolish.js";
+export {
+  runReviewAgent,
+  type ReviewInput,
+  type ReviewResult,
+} from "./reviewAgent.js";
