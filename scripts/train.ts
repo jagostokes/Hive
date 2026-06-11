@@ -38,6 +38,7 @@ import {
 } from "../src/agents/glossaryGrowth.js";
 import { runSqlAgent, type SqlAgentResult } from "../src/agents/sqlAgent.js";
 import { runReviewAgent } from "../src/agents/reviewAgent.js";
+import { performGenesis } from "../src/verifiers/verifierGenesis.js";
 import { REVIEW_POLICY } from "../config/models.js";
 
 // ---------------------------------------------------------------------------
@@ -71,6 +72,7 @@ interface QuestionMetrics {
   // Review (LLM-as-judge over accepted results)
   reviewScore?: number; // quality score 0..1, undefined if not reviewed
   reviewSurgeryTriggered: boolean; // review critique fired a prompt surgery
+  genesisTriggered: boolean; // a new verifier was synthesized for the missed failure
   // Learning triggered
   promptSurgeryTriggered: boolean;
   glossaryTermsAdded: string[];
@@ -110,6 +112,7 @@ interface TrainingReport {
     glossaryTermsLearned: number;
     promptSurgeries: number;
     reviewSurgeries: number;
+    synthesizedVerifiers: number;
     avgReviewScore: number | null;
     learnedExamples: number;
     // Improvement trajectory (first 3 vs last 3)
@@ -187,6 +190,7 @@ function computeSummary(metrics: QuestionMetrics[]): TrainingReport["summary"] {
   );
   const surgeries = metrics.filter((m) => m.promptSurgeryTriggered).length;
   const reviewSurgeries = metrics.filter((m) => m.reviewSurgeryTriggered).length;
+  const synthesizedVerifiers = metrics.filter((m) => m.genesisTriggered).length;
   const examples = metrics.filter((m) => m.learnedExampleStored).length;
   const reviewed = metrics.filter((m) => typeof m.reviewScore === "number");
   const avgReviewScore =
@@ -217,6 +221,7 @@ function computeSummary(metrics: QuestionMetrics[]): TrainingReport["summary"] {
     glossaryTermsLearned: glossaryTerms,
     promptSurgeries: surgeries,
     reviewSurgeries,
+    synthesizedVerifiers,
     avgReviewScore,
     learnedExamples: examples,
     firstTenSuccessRate: rate(first10),
@@ -306,6 +311,7 @@ async function main(): Promise<void> {
         failureReason: msg,
         promptGeneration: latestPrompt?.generation ?? 0,
         reviewSurgeryTriggered: false,
+        genesisTriggered: false,
         promptSurgeryTriggered: false,
         glossaryTermsAdded: [],
         learnedExampleStored: false,
@@ -337,6 +343,7 @@ async function main(): Promise<void> {
     let learnedExampleStored = false;
     let reviewScore: number | undefined;
     let reviewSurgeryTriggered = false;
+    let genesisTriggered = false;
 
     if (!sqlResult.ok) {
       // 1. Prompt Surgery: rewrite the sqlGen system prompt
@@ -450,6 +457,31 @@ async function main(): Promise<void> {
           promptSurgeryTriggered = true;
           lastReviewSurgeryIndex = i;
           console.log(`   🔧 Review surgery complete (new generation saved)`);
+
+          // Verifier Genesis: the review agent caught a quality failure the
+          // objective verifier missed — synthesize a new test so this class of
+          // failure is caught automatically in future runs (no judge needed).
+          try {
+            const genesis = await performGenesis(pool, {
+              stage: "sql",
+              failureDescription:
+                `${review.critique}` +
+                (review.issues.length ? ` [issues: ${review.issues.join(", ")}]` : ""),
+              failingOutput: sqlResult.data.sql,
+              inputContext: `Question: ${q.question}\nSchema: ${schemaStr}`,
+              existingVerifierResult:
+                "passed objective verification (SQL ran and returned rows) but review flagged a quality issue",
+            });
+            genesisTriggered = true;
+            console.log(
+              `   🧬 Verifier genesis: synthesized "${genesis.name}"` +
+                ` (validated: ${genesis.validated})`,
+            );
+          } catch (err) {
+            console.log(
+              `   🧬 Verifier genesis failed: ${err instanceof Error ? err.message : err}`,
+            );
+          }
         } else if (belowBar && !cooledDown) {
           console.log(`   ⏳ Below bar but in surgery cooldown — skipping rewrite`);
         }
@@ -476,6 +508,7 @@ async function main(): Promise<void> {
       promptGeneration: latestPrompt?.generation ?? 0,
       ...(reviewScore !== undefined ? { reviewScore } : {}),
       reviewSurgeryTriggered,
+      genesisTriggered,
       promptSurgeryTriggered,
       glossaryTermsAdded,
       learnedExampleStored,
@@ -545,8 +578,9 @@ async function main(): Promise<void> {
          (started_at, finished_at, dataset, questions_total, questions_run,
           success_rate, first_attempt_rate, escalation_rate,
           total_tokens, total_cost_usd, prompt_surgeries,
-          glossary_terms_added, learned_examples_stored, review_surgeries)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          glossary_terms_added, learned_examples_stored, review_surgeries,
+          synthesized_verifiers)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING id`,
       [
         report.startedAt, report.finishedAt, report.dataset,
@@ -555,7 +589,7 @@ async function main(): Promise<void> {
         report.summary.escalationRate, report.summary.totalTokens,
         report.summary.totalCostUsd, report.summary.promptSurgeries,
         report.summary.glossaryTermsLearned, report.summary.learnedExamples,
-        report.summary.reviewSurgeries,
+        report.summary.reviewSurgeries, report.summary.synthesizedVerifiers,
       ],
     );
     const runId = runRows[0].id;
@@ -619,6 +653,7 @@ async function main(): Promise<void> {
   console.log(`\n🔧 Self-improvement actions:`);
   console.log(`   Prompt surgeries: ${report.summary.promptSurgeries}`);
   console.log(`     ↳ review-triggered: ${report.summary.reviewSurgeries}`);
+  console.log(`   Synthesized verifiers (new tests): ${report.summary.synthesizedVerifiers}`);
   console.log(
     `   Avg review score: ${report.summary.avgReviewScore !== null ? report.summary.avgReviewScore.toFixed(2) : "n/a"}`,
   );

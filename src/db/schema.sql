@@ -71,8 +71,12 @@ create table if not exists training_runs (
   prompt_surgeries integer default 0,
   glossary_terms_added integer default 0,
   learned_examples_stored integer default 0,
-  review_surgeries integer default 0   -- surgeries triggered by the review agent
+  review_surgeries integer default 0,  -- surgeries triggered by the review agent
+  synthesized_verifiers integer default 0  -- new tests the system wrote for itself
 );
+
+-- Migrate older training_runs tables that predate the synthesized_verifiers column.
+alter table training_runs add column if not exists synthesized_verifiers integer default 0;
 
 -- Training metrics: per-question results within a training run.
 create table if not exists training_metrics (
