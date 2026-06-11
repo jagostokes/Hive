@@ -73,3 +73,4 @@ npm install
 cp .env.example .env   # fill in OPENROUTER_API_KEY + DATABASE_URL (Neon)
 npm run dev            # placeholder for now
 ```
+# Hivey
