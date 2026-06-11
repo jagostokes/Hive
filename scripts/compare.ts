@@ -12,7 +12,7 @@
  * DONE
  */
 import "dotenv/config";
-import { getPool, closePool } from "../src/db/index.js";
+import { getPool, getDataPool, closePool } from "../src/db/index.js";
 import { buildContext } from "../src/context/index.js";
 import { serveComparison } from "../src/web/index.js";
 
@@ -27,9 +27,9 @@ async function main(): Promise<void> {
     "Show me total revenue by region, the number of orders by status, and the monthly trend of revenue.";
 
   const cacheCutoff = new Date();
-  // Real dataset: introspect the live schema + glossary. No seeded test table.
-  const context = await buildContext(getPool());
-  const server = await serveComparison(question, { context, db: getPool(), port: 0 });
+  // Real dataset: introspect the live schema (DATA db) + glossary (APP db).
+  const context = await buildContext(getDataPool(), getPool());
+  const server = await serveComparison(question, { context, db: getPool(), dataDb: getDataPool(), port: 0 });
 
   console.log(`\n  Hive comparison running at:  ${server.url}`);
   console.log(`  Question: ${question}`);

@@ -13,7 +13,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-import { getPool } from "../db/client.js";
+import { getPool, getDataPool } from "../db/client.js";
 import { buildContext } from "../context/contextProvider.js";
 import { introspectSchema } from "../db/introspect.js";
 import {
@@ -164,7 +164,8 @@ export function startTraining(numQuestions: number): string {
 }
 
 async function runTrainingLoop(runId: string, numQuestions: number): Promise<void> {
-  const pool = getPool();
+  const pool = getPool(); // APP db — Hive's own brain-state tables
+  const dataPool = getDataPool(); // DATA db — the analytics database questions run against
 
   // Load questions
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -174,7 +175,8 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
   };
   const questions = raw.questions.slice(0, numQuestions);
 
-  const context = await buildContext(pool);
+  // Schema from the DATA db, glossary from the APP db.
+  const context = await buildContext(dataPool, pool);
   const run = trainingRuns.get(runId)!;
 
   let successCount = 0;
@@ -219,7 +221,7 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
     try {
       const sqlResult = await runSqlAgent(q.question, {
         context,
-        db: pool,
+        db: dataPool,
         systemPromptOverride,
       });
 
@@ -275,7 +277,7 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
         try {
           const unknowns = await detectUnknownTerms(pool, q.question);
           for (const term of unknowns.slice(0, 3)) {
-            const schema = await introspectSchema(pool);
+            const schema = await introspectSchema(dataPool);
             const schemaStr = schema.tables
               .map((t) => `${t.name}(${t.columns.map((c) => c.name).join(", ")})`)
               .join("; ");

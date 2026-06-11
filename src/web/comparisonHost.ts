@@ -4,7 +4,7 @@
 // counters, cost, and % savings read straight from getTotals() per lane.
 import http from "node:http";
 import type { Pool } from "pg";
-import { getPool } from "../db/index.js";
+import { getPool, getDataPool } from "../db/index.js";
 import { buildContext, type ContextProvider } from "../context/index.js";
 import { getTotals, getLedger, resetLedger, type Lane } from "../models/index.js";
 import { runBrainLane } from "../orchestrator/index.js";
@@ -35,7 +35,10 @@ export interface ComparisonServer {
 
 export interface ComparisonOptions {
   context?: ContextProvider;
+  /** APP pool — Hive's own brain-state tables. Defaults to getPool(). */
   db?: Pool;
+  /** DATA pool — the analytics database both lanes query. Defaults to getDataPool(). */
+  dataDb?: Pool;
   port?: number;
 }
 
@@ -46,8 +49,9 @@ export async function serveComparison(
   // One ledger for the whole comparison; lanes append, grouped by their tag.
   resetLedger();
 
-  const db = opts.db ?? getPool();
-  const context = opts.context ?? (await buildContext(db));
+  const appDb = opts.db ?? getPool();
+  const dataDb = opts.dataDb ?? getDataPool();
+  const context = opts.context ?? (await buildContext(dataDb, appDb));
 
   const state: ComparisonState = {
     question,
@@ -59,7 +63,7 @@ export async function serveComparison(
   // Kick off both lanes concurrently. They write to the shared ledger as calls
   // complete, so the live counters reflect real progress. Brain must NOT reset
   // the ledger (freshLedger:false) or it would wipe the baseline's entries.
-  const brainP = runBrainLane(question, { serve: false, freshLedger: false, context, db })
+  const brainP = runBrainLane(question, { serve: false, freshLedger: false, context, db: appDb, dataDb })
     .then((r) => {
       state.brain = {
         status: r.ok ? "done" : "failed",
@@ -73,7 +77,7 @@ export async function serveComparison(
       state.brain = { status: "error", html: laneErrorHtml("brain", msg), error: msg };
     });
 
-  const baselineP = runBaselineLane(question, { context, db })
+  const baselineP = runBaselineLane(question, { context, db: dataDb })
     .then((r) => {
       state.baseline = {
         status: r.ok ? "done" : "failed",

@@ -1,6 +1,6 @@
 // db: connect to InsForge Postgres and discover the schema at runtime
 // (tables, columns, types). No table/column names are hardcoded.
-export { getPool, closePool } from "./client.js";
+export { getPool, getDataPool, closePool } from "./client.js";
 export { runReadOnlyQuery, type ReadOnlyResult } from "./query.js";
 export {
   introspectSchema,

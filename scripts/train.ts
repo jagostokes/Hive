@@ -13,9 +13,13 @@
  */
 import "dotenv/config";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Pool } from "pg";
-import { getPool, closePool } from "../src/db/client.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+import { getPool, getDataPool, closePool } from "../src/db/client.js";
 import { introspectSchema } from "../src/db/introspect.js";
 import { buildContext } from "../src/context/contextProvider.js";
 import {
@@ -222,13 +226,14 @@ async function main(): Promise<void> {
   console.log(`   Questions: ${questions.length}`);
   console.log(`   Mode: Autoregressive self-improvement\n`);
 
-  const pool = getPool();
+  const pool = getPool(); // APP db — Hive's own brain-state tables
+  const dataPool = getDataPool(); // DATA db — the analytics database questions run against
   const allMetrics: QuestionMetrics[] = [];
   const allPromptSnapshots: PromptSnapshot[] = [];
   const startedAt = new Date().toISOString();
 
-  // Build context once (schema introspection).
-  const context = await buildContext(pool);
+  // Build context once: schema from the DATA db, glossary from the APP db.
+  const context = await buildContext(dataPool, pool);
 
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
@@ -252,7 +257,7 @@ async function main(): Promise<void> {
     try {
       sqlResult = await runSqlAgent(q.question, {
         context,
-        db: pool,
+        db: dataPool,
         systemPromptOverride,
       });
     } catch (err) {
@@ -336,7 +341,7 @@ async function main(): Promise<void> {
         for (const term of unknowns.slice(0, 3)) {
           // limit to 3 per question
           console.log(`   📚 Researching term: "${term}"`);
-          const schema = await introspectSchema(pool);
+          const schema = await introspectSchema(dataPool);
           const schemaStr = schema.tables
             .map((t) => `${t.name}(${t.columns.map((c) => c.name).join(", ")})`)
             .join("; ");

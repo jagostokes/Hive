@@ -10,7 +10,7 @@ import type {
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
 import { callModel } from "../models/index.js";
-import { getPool, runReadOnlyQuery } from "../db/index.js";
+import { getDataPool, runReadOnlyQuery } from "../db/index.js";
 import { renderVerifier } from "../verifiers/index.js";
 import { stripCodeFence } from "../agents/index.js";
 import { buildContext, type ContextProvider, type PlannerContext } from "../context/index.js";
@@ -69,6 +69,7 @@ export interface BaselineResult {
 
 export interface BaselineOptions {
   context?: ContextProvider;
+  /** DATA pool — the analytics database SQL runs against. Defaults to getDataPool(). */
   db?: Pool;
 }
 
@@ -76,7 +77,9 @@ export async function runBaselineLane(
   question: string,
   opts: BaselineOptions = {},
 ): Promise<BaselineResult> {
-  const db = opts.db ?? getPool();
+  // The baseline lane queries the analytics database directly (read-only SQL +
+  // schema introspection); it never touches Hive's own brain-state tables.
+  const db = opts.db ?? getDataPool();
   const context = opts.context ?? (await buildContext(db));
   const planner = context.forPlanner();
 

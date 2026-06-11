@@ -7,7 +7,7 @@
 //   serve on localhost, return the full lane:"brain" ledger.
 // Caps stay intact: every agent enforces its own cheap/retry/escalate/stop loop.
 import type { Pool } from "pg";
-import { getPool, runReadOnlyQuery } from "../db/index.js";
+import { getPool, getDataPool, runReadOnlyQuery } from "../db/index.js";
 import { buildContext, type ContextProvider, type ResultRow } from "../context/index.js";
 import {
   runPlanner,
@@ -145,8 +145,10 @@ export interface BrainResult {
 export interface BrainOptions {
   /** Scoped-context provider. Defaults to a live introspection (buildContext()). */
   context?: ContextProvider;
-  /** DB pool for SQL execution/caching. Defaults to the shared pool. */
+  /** APP pool — Hive's own tables (query cache, glossary). Defaults to getPool(). */
   db?: Pool;
+  /** DATA pool — the analytics database SQL runs against. Defaults to getDataPool(). */
+  dataDb?: Pool;
   /** Serve the dashboard on localhost. Default true. */
   serve?: boolean;
   /** Port for the localhost server (0 = pick a free port). Default 0. */
@@ -171,7 +173,10 @@ const EXACT_REUSE_THRESHOLD = 0.93;
 
 interface LaneDeps {
   context: ContextProvider;
-  db: Pool;
+  /** APP pool — query cache lives here (Hive's own brain state). */
+  appDb: Pool;
+  /** DATA pool — SQL generation/execution runs against the analytics database. */
+  dataDb: Pool;
   cacheThreshold?: number;
   /** Override the SQL escalation model (the fallback lane uses the flagship). */
   sqlEscalation?: ModelRole;
@@ -209,7 +214,7 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
   // fall back to full generation below.
   const tCache = Date.now();
   const lookup = await cacheLookup(node.question, {
-    pool: deps.db,
+    pool: deps.appDb,
     ...(deps.cacheThreshold !== undefined ? { threshold: deps.cacheThreshold } : {}),
   });
   brainLog(`lane ${node.id} cache lookup ${Date.now() - tCache}ms (hit=${lookup.hit})`);
@@ -217,7 +222,7 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
     cacheSimilarity = lookup.similarity;
     if (lookup.similarity >= EXACT_REUSE_THRESHOLD) {
       try {
-        const r = await runReadOnlyQuery(lookup.sql, deps.db);
+        const r = await runReadOnlyQuery(lookup.sql, deps.dataDb);
         if (r.rows.length > 0) {
           sql = lookup.sql;
           rows = r.rows;
@@ -229,7 +234,7 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
     } else {
       // Looser match: adapt the cached skeleton with one cheap call.
       const adapted = await adaptCachedSql(node.question, lookup.cachedQuestion, lookup.sql, {
-        db: deps.db,
+        db: deps.dataDb,
       });
       if (adapted.ok && adapted.sql && adapted.rows && adapted.rows.length > 0) {
         sql = adapted.sql;
@@ -243,7 +248,7 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
     const tSql = Date.now();
     const sqlRes = await runSqlAgent(node.question, {
       context: deps.context,
-      db: deps.db,
+      db: deps.dataDb,
       ...(deps.sqlEscalation ? { escalationRole: deps.sqlEscalation } : {}),
     });
     brainLog(
@@ -259,7 +264,7 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
     sqlSource = "generated";
     // Step 3: write a successful, non-cached (question, embedding, SQL) to cache.
     try {
-      await cacheStore(node.question, sql, { pool: deps.db });
+      await cacheStore(node.question, sql, { pool: deps.appDb });
     } catch {
       // Caching is best-effort; a write failure must not fail the lane.
     }
@@ -295,11 +300,13 @@ async function runLane(node: PlanNode, deps: LaneDeps): Promise<LaneResult> {
 export async function runBrainLane(question: string, opts: BrainOptions = {}): Promise<BrainResult> {
   if (opts.freshLedger !== false) resetLedger();
 
-  const db = opts.db ?? getPool();
-  const context = opts.context ?? (await buildContext(db));
+  const appDb = opts.db ?? getPool();
+  const dataDb = opts.dataDb ?? getDataPool();
+  const context = opts.context ?? (await buildContext(dataDb, appDb));
   const laneDeps: LaneDeps = {
     context,
-    db,
+    appDb,
+    dataDb,
     ...(opts.cacheThreshold !== undefined ? { cacheThreshold: opts.cacheThreshold } : {}),
   };
 
