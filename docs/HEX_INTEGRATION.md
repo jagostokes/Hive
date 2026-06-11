@@ -63,6 +63,14 @@ Drop a bar chart on the first, a line chart on the second.
 
 Each cell below is ready to paste. Suggested visualization noted per cell.
 
+> **Prompt evolution is driven by a review agent.** During training a
+> heftier-model critic (LLM-as-judge) grades every query the objective verifier
+> accepted. When a query "runs" but answers the question poorly (review_score
+> below the surgery threshold), it triggers a prompt surgery — so the sqlGen
+> system prompt rewrites itself on *quality*, not just on hard failures. The
+> `prompt_evolution`, `training_trajectory`, and `review_quality` cells below
+> visualize this loop.
+
 ```sql
 -- [cell: prompt_evolution]  TABLE — how the sqlGen system prompt rewrote itself
 select role, generation, diagnosis,
@@ -74,9 +82,21 @@ order by role, generation;
 ```sql
 -- [cell: training_trajectory]  LINE — per-question results of the latest run
 select question_index, style, total_tokens, cost_usd,
-       sql_success, first_attempt_pass, escalation_used, attempts, prompt_generation
+       sql_success, first_attempt_pass, escalation_used, attempts,
+       prompt_generation, review_score
 from training_metrics
 where run_id = (select id from training_runs order by started_at desc limit 1)
+order by question_index;
+```
+
+```sql
+-- [cell: review_quality]  LINE — reviewer score per question + the prompt
+-- generation active at the time. Dips below 0.8 are what trigger surgery; the
+-- generation should step up right after a dip and scores recover after.
+select question_index, review_score, prompt_generation
+from training_metrics
+where run_id = (select id from training_runs order by started_at desc limit 1)
+  and review_score is not null
 order by question_index;
 ```
 
@@ -99,7 +119,7 @@ select dataset, questions_run,
        round((success_rate*100)::numeric,1)        as success_pct,
        round((first_attempt_rate*100)::numeric,1)  as first_attempt_pct,
        round((escalation_rate*100)::numeric,1)     as escalation_pct,
-       total_tokens, total_cost_usd, prompt_surgeries,
+       total_tokens, total_cost_usd, prompt_surgeries, review_surgeries,
        glossary_terms_added, learned_examples_stored
 from training_runs order by started_at desc limit 1;
 ```
