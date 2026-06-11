@@ -1,0 +1,456 @@
+{
+  "dataset": "northwind",
+  "description": "75 medium-difficulty training questions with varied phrasing styles (ambiguous, precise, jargon, obscure) for homogeneous training",
+  "questions": [
+    {
+      "id": 1,
+      "style": "ambiguous",
+      "question": "How are we doing on sales?",
+      "concepts": ["revenue", "aggregation", "open-ended"]
+    },
+    {
+      "id": 2,
+      "style": "precise",
+      "question": "What is the total revenue by product category for orders placed in 1997?",
+      "concepts": ["JOIN", "GROUP BY", "date filter", "calculated field"]
+    },
+    {
+      "id": 3,
+      "style": "jargon",
+      "question": "What's our freight cost ratio by shipper?",
+      "concepts": ["ratio calculation", "GROUP BY", "business term"]
+    },
+    {
+      "id": 4,
+      "style": "ambiguous",
+      "question": "Which customers are our best?",
+      "concepts": ["ranking", "ambiguous metric", "GROUP BY"]
+    },
+    {
+      "id": 5,
+      "style": "precise",
+      "question": "Show the top 10 products by total quantity sold, with their category name.",
+      "concepts": ["JOIN", "GROUP BY", "SUM", "ORDER BY", "LIMIT"]
+    },
+    {
+      "id": 6,
+      "style": "obscure",
+      "question": "What's the reorder gap across our product lines?",
+      "concepts": ["reorder level vs stock", "business term", "calculation"]
+    },
+    {
+      "id": 7,
+      "style": "ambiguous",
+      "question": "Are there any trends in our orders?",
+      "concepts": ["time series", "open-ended", "GROUP BY date"]
+    },
+    {
+      "id": 8,
+      "style": "precise",
+      "question": "Calculate the average order value per customer, only for customers with more than 5 orders.",
+      "concepts": ["JOIN", "GROUP BY", "HAVING", "AVG"]
+    },
+    {
+      "id": 9,
+      "style": "jargon",
+      "question": "What's our customer concentration risk by country?",
+      "concepts": ["concentration", "GROUP BY", "percentage"]
+    },
+    {
+      "id": 10,
+      "style": "obscure",
+      "question": "Show me the territory coverage gaps.",
+      "concepts": ["territories", "employees", "LEFT JOIN"]
+    },
+    {
+      "id": 11,
+      "style": "ambiguous",
+      "question": "How's each employee performing?",
+      "concepts": ["employee revenue", "GROUP BY", "ambiguous metric"]
+    },
+    {
+      "id": 12,
+      "style": "precise",
+      "question": "List all orders that shipped more than 5 days after the order date, with customer name and shipper.",
+      "concepts": ["date arithmetic", "JOIN", "WHERE"]
+    },
+    {
+      "id": 13,
+      "style": "jargon",
+      "question": "What's our average days-to-ship by region?",
+      "concepts": ["date arithmetic", "AVG", "GROUP BY", "business metric"]
+    },
+    {
+      "id": 14,
+      "style": "obscure",
+      "question": "Which suppliers are we over-reliant on?",
+      "concepts": ["supplier concentration", "product count", "percentage"]
+    },
+    {
+      "id": 15,
+      "style": "ambiguous",
+      "question": "Tell me about our product mix.",
+      "concepts": ["category breakdown", "open-ended"]
+    },
+    {
+      "id": 16,
+      "style": "precise",
+      "question": "What is the month-over-month order count for 1997, broken out by quarter?",
+      "concepts": ["date extraction", "GROUP BY", "time series"]
+    },
+    {
+      "id": 17,
+      "style": "jargon",
+      "question": "What's our SKU depth per category?",
+      "concepts": ["product count per category", "business term"]
+    },
+    {
+      "id": 18,
+      "style": "obscure",
+      "question": "Are there any dormant accounts?",
+      "concepts": ["customers without recent orders", "date comparison"]
+    },
+    {
+      "id": 19,
+      "style": "ambiguous",
+      "question": "What's happening with our pricing?",
+      "concepts": ["price analysis", "open-ended", "AVG/distribution"]
+    },
+    {
+      "id": 20,
+      "style": "precise",
+      "question": "Show revenue per employee per quarter for 1997, sorted by total revenue descending.",
+      "concepts": ["JOIN", "date extraction", "GROUP BY", "ORDER BY"]
+    },
+    {
+      "id": 21,
+      "style": "jargon",
+      "question": "What's our order fill rate by category?",
+      "concepts": ["fill rate", "business term", "ratio"]
+    },
+    {
+      "id": 22,
+      "style": "obscure",
+      "question": "How fragmented is our supplier base?",
+      "concepts": ["supplier diversity", "COUNT DISTINCT", "analysis"]
+    },
+    {
+      "id": 23,
+      "style": "ambiguous",
+      "question": "Who are our problem customers?",
+      "concepts": ["late payments/low orders", "ambiguous definition"]
+    },
+    {
+      "id": 24,
+      "style": "precise",
+      "question": "For each category, what percentage of total revenue does it represent?",
+      "concepts": ["JOIN", "SUM", "percentage", "window function or subquery"]
+    },
+    {
+      "id": 25,
+      "style": "jargon",
+      "question": "What's the average basket size by country?",
+      "concepts": ["items per order", "GROUP BY country", "AVG"]
+    },
+    {
+      "id": 26,
+      "style": "obscure",
+      "question": "Show me the seasonal patterns.",
+      "concepts": ["month aggregation", "multi-year", "trends"]
+    },
+    {
+      "id": 27,
+      "style": "ambiguous",
+      "question": "Which products should we worry about?",
+      "concepts": ["low stock/declining sales", "ambiguous"]
+    },
+    {
+      "id": 28,
+      "style": "precise",
+      "question": "List customers who ordered in 1996 but not in 1997, with their total 1996 spend.",
+      "concepts": ["NOT EXISTS/EXCEPT", "date filter", "SUM"]
+    },
+    {
+      "id": 29,
+      "style": "jargon",
+      "question": "What's our gross margin by product assuming 60% COGS?",
+      "concepts": ["calculated field", "margin formula", "business term"]
+    },
+    {
+      "id": 30,
+      "style": "obscure",
+      "question": "Where are the bottlenecks in shipping?",
+      "concepts": ["shipping delay analysis", "GROUP BY shipper"]
+    },
+    {
+      "id": 31,
+      "style": "ambiguous",
+      "question": "How diversified are our sales?",
+      "concepts": ["category/country distribution", "open-ended"]
+    },
+    {
+      "id": 32,
+      "style": "precise",
+      "question": "What is the average discount percentage applied per product category, weighted by quantity?",
+      "concepts": ["weighted average", "JOIN", "GROUP BY"]
+    },
+    {
+      "id": 33,
+      "style": "jargon",
+      "question": "What's our cross-sell rate between categories?",
+      "concepts": ["orders spanning multiple categories", "analysis"]
+    },
+    {
+      "id": 34,
+      "style": "obscure",
+      "question": "Show the employee hierarchy with their sales numbers.",
+      "concepts": ["self-JOIN", "reports_to", "revenue"]
+    },
+    {
+      "id": 35,
+      "style": "ambiguous",
+      "question": "Are we growing?",
+      "concepts": ["year-over-year comparison", "open-ended"]
+    },
+    {
+      "id": 36,
+      "style": "precise",
+      "question": "Rank products within each category by revenue, showing only the top 3 per category.",
+      "concepts": ["window function", "ROW_NUMBER", "PARTITION BY"]
+    },
+    {
+      "id": 37,
+      "style": "jargon",
+      "question": "What's our AOV trend over time?",
+      "concepts": ["average order value", "time series", "business term"]
+    },
+    {
+      "id": 38,
+      "style": "obscure",
+      "question": "Which regions are underserved?",
+      "concepts": ["territory/order analysis", "low coverage"]
+    },
+    {
+      "id": 39,
+      "style": "ambiguous",
+      "question": "What's the deal with our discounts?",
+      "concepts": ["discount analysis", "open-ended"]
+    },
+    {
+      "id": 40,
+      "style": "precise",
+      "question": "Show the running total of revenue by month for the entire order history.",
+      "concepts": ["window function", "SUM OVER", "date extraction"]
+    },
+    {
+      "id": 41,
+      "style": "jargon",
+      "question": "What's our inventory turnover by category?",
+      "concepts": ["units sold vs units in stock", "ratio", "business term"]
+    },
+    {
+      "id": 42,
+      "style": "obscure",
+      "question": "Find the power law in our customer base.",
+      "concepts": ["Pareto/concentration", "top customers vs total"]
+    },
+    {
+      "id": 43,
+      "style": "ambiguous",
+      "question": "How efficient is our shipping?",
+      "concepts": ["shipping cost/time analysis", "open-ended"]
+    },
+    {
+      "id": 44,
+      "style": "precise",
+      "question": "For each shipper, calculate the percentage of orders that were delivered late (after required_date).",
+      "concepts": ["date comparison", "CASE", "GROUP BY", "percentage"]
+    },
+    {
+      "id": 45,
+      "style": "jargon",
+      "question": "What's the LTV distribution across customer segments?",
+      "concepts": ["lifetime value", "segmentation", "distribution"]
+    },
+    {
+      "id": 46,
+      "style": "obscure",
+      "question": "Show me where money is leaking.",
+      "concepts": ["discount impact", "revenue loss", "analysis"]
+    },
+    {
+      "id": 47,
+      "style": "ambiguous",
+      "question": "What patterns do you see in our data?",
+      "concepts": ["general analysis", "completely open-ended"]
+    },
+    {
+      "id": 48,
+      "style": "precise",
+      "question": "List the 5 countries with the highest average freight cost per order, including order count.",
+      "concepts": ["GROUP BY", "AVG", "ORDER BY", "LIMIT"]
+    },
+    {
+      "id": 49,
+      "style": "jargon",
+      "question": "What's our supplier lead-time reliability?",
+      "concepts": ["shipping delay by supplier", "business term"]
+    },
+    {
+      "id": 50,
+      "style": "obscure",
+      "question": "Which products are cannibalizing each other?",
+      "concepts": ["co-occurrence", "same-category competition"]
+    },
+    {
+      "id": 51,
+      "style": "ambiguous",
+      "question": "Give me a health check on the business.",
+      "concepts": ["multiple KPIs", "completely open-ended"]
+    },
+    {
+      "id": 52,
+      "style": "precise",
+      "question": "What is the average number of distinct products per order, grouped by customer country?",
+      "concepts": ["COUNT DISTINCT", "AVG", "GROUP BY", "subquery"]
+    },
+    {
+      "id": 53,
+      "style": "jargon",
+      "question": "What's our revenue per headcount by territory?",
+      "concepts": ["revenue / employee count", "territory JOIN"]
+    },
+    {
+      "id": 54,
+      "style": "obscure",
+      "question": "Are there ghost products in the catalog?",
+      "concepts": ["products never ordered", "LEFT JOIN NULL"]
+    },
+    {
+      "id": 55,
+      "style": "ambiguous",
+      "question": "How loyal are our customers?",
+      "concepts": ["repeat purchase rate", "frequency", "ambiguous"]
+    },
+    {
+      "id": 56,
+      "style": "precise",
+      "question": "Show the percentage change in quarterly revenue between Q1 and Q4 of 1997.",
+      "concepts": ["date extraction", "aggregation", "percentage change"]
+    },
+    {
+      "id": 57,
+      "style": "jargon",
+      "question": "What's our category penetration rate by country?",
+      "concepts": ["categories ordered / total categories", "by country"]
+    },
+    {
+      "id": 58,
+      "style": "obscure",
+      "question": "Where are the diminishing returns in our product range?",
+      "concepts": ["long tail products", "revenue contribution"]
+    },
+    {
+      "id": 59,
+      "style": "ambiguous",
+      "question": "What should we focus on next quarter?",
+      "concepts": ["recommendations based on data", "open-ended"]
+    },
+    {
+      "id": 60,
+      "style": "precise",
+      "question": "For each employee, show their total revenue and the percentage of company total they represent.",
+      "concepts": ["JOIN", "SUM", "window function or subquery", "percentage"]
+    },
+    {
+      "id": 61,
+      "style": "jargon",
+      "question": "What's our order velocity trend?",
+      "concepts": ["orders per time period", "trend", "business term"]
+    },
+    {
+      "id": 62,
+      "style": "obscure",
+      "question": "Show the Pareto curve of our product catalog.",
+      "concepts": ["cumulative revenue percentage", "ranked products"]
+    },
+    {
+      "id": 63,
+      "style": "ambiguous",
+      "question": "Which markets matter most?",
+      "concepts": ["country revenue ranking", "ambiguous definition of 'matter'"]
+    },
+    {
+      "id": 64,
+      "style": "precise",
+      "question": "Calculate the average time in days between a customer's first and second order.",
+      "concepts": ["LAG/LEAD", "date arithmetic", "window function"]
+    },
+    {
+      "id": 65,
+      "style": "jargon",
+      "question": "What's our replenishment urgency score by product?",
+      "concepts": ["stock vs reorder level", "priority calculation"]
+    },
+    {
+      "id": 66,
+      "style": "obscure",
+      "question": "Find the silent churn signals.",
+      "concepts": ["declining order frequency", "customer analysis"]
+    },
+    {
+      "id": 67,
+      "style": "ambiguous",
+      "question": "How's Q4 looking compared to last year?",
+      "concepts": ["year-over-year Q4 comparison", "somewhat specific"]
+    },
+    {
+      "id": 68,
+      "style": "precise",
+      "question": "Show the supplier with the highest total product revenue, broken down by category.",
+      "concepts": ["multi-JOIN", "GROUP BY", "SUM", "ORDER BY"]
+    },
+    {
+      "id": 69,
+      "style": "jargon",
+      "question": "What's our geographic revenue density?",
+      "concepts": ["revenue per country/region", "business term"]
+    },
+    {
+      "id": 70,
+      "style": "obscure",
+      "question": "Which shipping lanes are underperforming?",
+      "concepts": ["shipper + country combinations", "cost/delay analysis"]
+    },
+    {
+      "id": 71,
+      "style": "ambiguous",
+      "question": "Are we leaving money on the table?",
+      "concepts": ["missed opportunities", "completely ambiguous"]
+    },
+    {
+      "id": 72,
+      "style": "precise",
+      "question": "What is the correlation between discount percentage and order quantity per product?",
+      "concepts": ["discount vs quantity", "analysis", "GROUP BY"]
+    },
+    {
+      "id": 73,
+      "style": "jargon",
+      "question": "What's our net revenue retention by customer cohort?",
+      "concepts": ["cohort analysis", "revenue retention", "business term"]
+    },
+    {
+      "id": 74,
+      "style": "obscure",
+      "question": "Map the decision hierarchy against performance.",
+      "concepts": ["employee reports_to + revenue", "self-JOIN"]
+    },
+    {
+      "id": 75,
+      "style": "ambiguous",
+      "question": "Summarize everything important.",
+      "concepts": ["multiple KPIs", "maximum ambiguity"]
+    }
+  ]
+}

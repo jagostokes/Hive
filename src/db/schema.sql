@@ -54,6 +54,50 @@ create table if not exists learned_examples (
   created_at    timestamptz default now()
 );
 
+-- Training runs: each training session is persisted here with summary metrics.
+-- Per-question metrics are stored in training_metrics, linked by run_id.
+create table if not exists training_runs (
+  id              bigserial primary key,
+  started_at      timestamptz not null,
+  finished_at     timestamptz,
+  dataset         text not null default 'northwind',
+  questions_total integer not null,
+  questions_run   integer default 0,
+  success_rate    real,
+  first_attempt_rate real,
+  escalation_rate real,
+  total_tokens    bigint default 0,
+  total_cost_usd  real default 0,
+  prompt_surgeries integer default 0,
+  glossary_terms_added integer default 0,
+  learned_examples_stored integer default 0,
+  review_surgeries integer default 0,  -- surgeries triggered by the review agent
+  synthesized_verifiers integer default 0  -- new tests the system wrote for itself
+);
+
+-- Migrate older training_runs tables that predate the synthesized_verifiers column.
+alter table training_runs add column if not exists synthesized_verifiers integer default 0;
+
+-- Training metrics: per-question results within a training run.
+create table if not exists training_metrics (
+  id                bigserial primary key,
+  run_id            bigint references training_runs(id),
+  question_index    integer not null,
+  question_text     text not null,
+  style             text,
+  total_tokens      integer not null,
+  cost_usd          real not null,
+  sql_success       boolean not null,
+  first_attempt_pass boolean not null,
+  escalation_used   boolean not null,
+  attempts          integer not null,
+  prompt_generation integer,           -- which prompt gen was active
+  failure_reason    text,
+  review_score      real,               -- reviewer quality score (0..1), null if not reviewed
+  elapsed_ms        integer,
+  created_at        timestamptz default now()
+);
+
 -- Synthesized verifiers (verifier genesis / recursive testing): when an existing
 -- verifier misses a failure, a meta-agent writes a new JS predicate function and
 -- stores it here. Active predicates run alongside the built-in verifiers on

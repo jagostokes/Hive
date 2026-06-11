@@ -28,6 +28,16 @@ import { runBrainLane } from "../orchestrator/index.js";
 import { runBaselineLane } from "../baseline/index.js";
 import { MODELS, type ModelRole } from "../../config/models.js";
 import { runStore, type LaneId } from "./runStore.js";
+import {
+  getPromptEdition,
+  startTraining,
+  getTrainingRun,
+  listTrainingRuns,
+  isTrainingActive,
+  getActiveTrainingId,
+  trainingEmitter,
+  type TrainingMetricEvent,
+} from "./trainingApi.js";
 
 const app = new Hono();
 app.use("*", cors());
@@ -260,6 +270,152 @@ function prettyModelLabel(slug: string): string {
     .replace(/\b\w/g, (m) => m.toUpperCase())
     .replace(/\b(\d+)b\b/gi, "$1B");
 }
+
+// --- Prompt edition ---
+
+app.get("/api/prompt-edition", async (c) => {
+  try {
+    const edition = await getPromptEdition();
+    return c.json(edition ?? { generation: 0, diagnosis: null, winRate: null, createdAt: null });
+  } catch {
+    return c.json({ generation: 0, diagnosis: null, winRate: null, createdAt: null });
+  }
+});
+
+// --- Synchronous ask (for embedding Hive in external tools, e.g. Hex) ---
+//
+// POST /api/ask { question, baseline? } -> runs the brain lane (and optionally
+// the baseline lane) to completion and returns ONE JSON payload: the generated
+// SQL + rows + insight per sub-question, the rendered dashboard HTML, and the
+// brain-vs-baseline cost. Unlike /api/run (which streams over SSE for the live
+// UI), this blocks until done so a notebook cell can `requests.post(...)` and
+// read the result directly. Baseline is opt-in because it fires the expensive
+// flagship model — leave it off to keep per-call cost minimal.
+app.post("/api/ask", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    question?: string;
+    baseline?: boolean;
+  };
+  const question = (body.question ?? "").trim();
+  if (!question) return c.json({ error: "question required" }, 400);
+
+  resetLedger();
+
+  const brain = await runBrainLane(question, { serve: false, freshLedger: false });
+  const baseline = body.baseline === true ? await runBaselineLane(question) : null;
+
+  const totals = getTotals();
+  const edition = await getPromptEdition().catch(() => null);
+
+  const brainCost = totals.byLane.brain.costUsd;
+  const baselineCost = totals.byLane.baseline.costUsd;
+  const savingsPct =
+    baseline && baselineCost > 0
+      ? Math.round(((baselineCost - brainCost) / baselineCost) * 1000) / 10
+      : null;
+
+  return c.json({
+    question,
+    ok: brain.ok,
+    promptGeneration: edition?.generation ?? 0,
+    cacheHits: brain.cacheHits,
+    brain: {
+      ok: brain.ok,
+      costUsd: brainCost,
+      tokens: totals.byLane.brain.promptTokens + totals.byLane.brain.completionTokens,
+      charts: brain.lanes.map((l) => ({
+        question: l.question,
+        sql: l.sql ?? null,
+        insight: l.insight ?? null,
+        rows: l.rows ?? [],
+      })),
+      dashboardHtml: brain.dashboard?.html ?? null,
+      ...(brain.reason ? { reason: brain.reason } : {}),
+    },
+    ...(baseline
+      ? {
+          baseline: {
+            ok: baseline.renderOk,
+            costUsd: baselineCost,
+            tokens:
+              totals.byLane.baseline.promptTokens + totals.byLane.baseline.completionTokens,
+            dashboardHtml: baseline.html ?? null,
+            ...(baseline.reason ? { reason: baseline.reason } : {}),
+          },
+          savingsPct,
+        }
+      : {}),
+  });
+});
+
+// --- Training endpoints ---
+
+app.post("/api/train/start", async (c) => {
+  if (isTrainingActive()) {
+    return c.json({ error: "Training already in progress", activeId: getActiveTrainingId() }, 409);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as { questions?: number };
+  const numQuestions = Math.min(body.questions ?? 75, 75);
+  try {
+    const id = startTraining(numQuestions);
+    return c.json({ runId: id });
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, 500);
+  }
+});
+
+app.get("/api/train/status", (c) => {
+  return c.json({
+    active: isTrainingActive(),
+    activeId: getActiveTrainingId(),
+    runs: listTrainingRuns(),
+  });
+});
+
+app.get("/api/train/:id/events", (c) => {
+  const id = c.req.param("id");
+  const run = getTrainingRun(id);
+  if (!run) return c.json({ error: "unknown training run" }, 404);
+
+  return streamSSE(c, async (stream) => {
+    let closed = false;
+
+    // Replay existing events (in case client connected after start)
+    for (const ev of run.metrics) {
+      await stream.writeSSE({ data: JSON.stringify(ev) });
+    }
+
+    // Listen for new events
+    const listener = async (event: TrainingMetricEvent): Promise<void> => {
+      if (closed) return;
+      await stream.writeSSE({ data: JSON.stringify(event) });
+    };
+    trainingEmitter.on(`train:${id}`, listener);
+
+    stream.onAbort(() => {
+      closed = true;
+      trainingEmitter.off(`train:${id}`, listener);
+    });
+
+    // Keep alive until training completes
+    while (!closed) {
+      const current = getTrainingRun(id);
+      if (!current || current.status !== "running") break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+
+    trainingEmitter.off(`train:${id}`, listener);
+  });
+});
+
+app.get("/api/train/:id/report", (c) => {
+  const id = c.req.param("id");
+  const run = getTrainingRun(id);
+  if (!run) return c.json({ error: "unknown training run" }, 404);
+  return c.json(run);
+});
+
+// --- Server start ---
 
 const port = Number(process.env.HIVE_UI_PORT ?? 4317);
 serve({ fetch: app.fetch, port }, (info) => {

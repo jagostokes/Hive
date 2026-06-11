@@ -16,6 +16,7 @@ export type ModelRole =
   | "dashboardPlan"
   | "codeGen"
   | "codeEdit"
+  | "reviewer"
   | "baseline";
 
 export interface ModelSpec {
@@ -43,6 +44,12 @@ export const MODELS: Record<ModelRole, ModelSpec> = {
   // flagship, so the brain lane keeps its large cost advantage.
   codeGen: { slug: "deepseek/deepseek-v4-pro", inputPerMillion: 0.43, outputPerMillion: 0.87 },
   codeEdit: { slug: "relace/relace-apply-3", inputPerMillion: 0.85, outputPerMillion: 1.3 },
+  // The reviewer is a training-time-only critic (LLM-as-judge). It grades
+  // PASSING sql outputs on a quality rubric and triggers prompt surgery when a
+  // query "works" but is wrong/weak. It never runs in the live, cost-compared
+  // brain lane, so it deliberately uses a heftier model than the cheap lanes for
+  // sharper judgment — still ~8x cheaper than the Opus baseline.
+  reviewer: { slug: "anthropic/claude-sonnet-4.5", inputPerMillion: 3.0, outputPerMillion: 15.0 },
   baseline: { slug: "anthropic/claude-opus-4.8", inputPerMillion: 5.0, outputPerMillion: 25.0 },
 };
 
@@ -53,6 +60,22 @@ export const LOOP_CAPS = {
   maxCheapAttempts: 2,
   /** Attempts on the stronger escalation model after cheap attempts are exhausted. */
   maxEscalationAttempts: 1,
+} as const;
+
+// Review policy: governs the training-time review agent (LLM-as-judge) that
+// critiques SQL the objective verifier already accepted, and decides when its
+// critique should trigger prompt surgery.
+export const REVIEW_POLICY = {
+  /** Run the reviewer on accepted results during training. */
+  enabled: true,
+  /** Quality score below which the reviewer's critique is eligible to trigger surgery. */
+  surgeryThreshold: 0.8,
+  /**
+   * Minimum number of questions between two review-triggered surgeries. Prevents
+   * the prompt from being rewritten on every trivial nitpick — the prompt gets a
+   * few questions to prove the last revision before the next one fires.
+   */
+  surgeryCooldown: 3,
 } as const;
 
 // Where each cheap role escalates on verified failure. Deliberately a mid-tier,

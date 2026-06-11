@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
   fetchModels,
+  fetchPromptEdition,
   htmlDownloadUrl,
   startRun,
   subscribeRun,
@@ -12,6 +13,7 @@ import {
   type LaneState,
   type LedgerEntry,
   type ModelsResponse,
+  type PromptEdition,
   type RunEvent,
   type Totals,
 } from "../lib/api";
@@ -50,6 +52,7 @@ const EMPTY_TOTALS: Totals = {
 export function Workspace(): JSX.Element {
   const [models, setModels] = useState<ModelsResponse | null>(null);
   const [modelsError, setModelsError] = useState<string | null>(null);
+  const [promptEdition, setPromptEdition] = useState<PromptEdition | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   const [question, setQuestion] = useState<string>("");
   const [brain, setBrain] = useState<LaneState>(EMPTY_LANE);
@@ -63,6 +66,7 @@ export function Workspace(): JSX.Element {
     fetchModels()
       .then(setModels)
       .catch((err) => setModelsError(err.message ?? "could not load models"));
+    fetchPromptEdition().then(setPromptEdition).catch(() => {});
   }, []);
 
   useEffect(
@@ -189,6 +193,43 @@ export function Workspace(): JSX.Element {
           {HEADER}
         </motion.p>
       </header>
+
+      {/* Prompt edition indicator */}
+      {promptEdition && (
+        <div style={{
+          maxWidth: 880,
+          margin: "0 auto",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 11,
+          color: "var(--muted)",
+          paddingBottom: 4,
+        }}>
+          <span style={{
+            background: "#6366f1",
+            color: "white",
+            borderRadius: 3,
+            padding: "1px 6px",
+            fontSize: 10,
+            fontWeight: 700,
+            fontFamily: "monospace",
+          }}>
+            Gen {promptEdition.generation}
+          </span>
+          <span>
+            {promptEdition.generation === 0
+              ? "Default system prompt"
+              : `Evolved: ${promptEdition.diagnosis ?? "modified"}`}
+          </span>
+          {promptEdition.winRate !== null && (
+            <span style={{ marginLeft: "auto", color: "#10b981", fontFamily: "monospace" }}>
+              {(promptEdition.winRate * 100).toFixed(0)}% win
+            </span>
+          )}
+        </div>
+      )}
 
       {/* universal Ask bar */}
       <div

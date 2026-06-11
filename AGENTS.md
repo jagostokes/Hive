@@ -15,10 +15,16 @@ parallel for cost comparison. Results render as a localhost dashboard.
 
 ## Backend
 
-- **Postgres** via [Neon](https://neon.tech) (free tier, pgvector enabled).
-- Connection: raw `pg` Pool (`src/db/client.ts`), reads `DATABASE_URL` from `.env`.
-- Schema: `src/db/schema.sql` — run `npm run db:setup` to apply.
-- No ORM; all queries are raw SQL.
+- Two logical Postgres connections (both plain `pg` Pools, `src/db/client.ts`):
+  - **APP** (`DATABASE_URL`) — Hive's own brain-state tables: `query_cache`
+    (pgvector), `business_glossary`, `prompt_versions`, `learned_examples`,
+    `synthesized_verifiers`, `training_runs/metrics`. `getPool()`. Typically Neon.
+  - **DATA** (`DATA_DATABASE_URL`) — the analytics database the questions run
+    against (introspected + read-only queried, never written). `getDataPool()`.
+    Falls back to `DATABASE_URL` when unset, so single-database setups still work.
+    Any plain Postgres works here, e.g. ClickHouse Cloud's PostgreSQL endpoint.
+- Schema (APP tables): `src/db/schema.sql` — run `npm run db:setup` to apply.
+- No ORM; all queries are raw SQL. Schema for the DATA db is discovered at runtime.
 
 ## Model calls
 

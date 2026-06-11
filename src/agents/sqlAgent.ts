@@ -49,6 +49,11 @@ export interface SqlAgentDeps {
    * question is answerable at all.
    */
   escalationRole?: ModelRole;
+  /**
+   * Override the system prompt (e.g. with a surgically-improved version loaded
+   * from prompt_versions). When set, this replaces the default SYSTEM_PROMPT.
+   */
+  systemPromptOverride?: string;
 }
 
 export interface SqlAgentSuccess {
@@ -72,7 +77,7 @@ export async function runSqlAgent(
 
   return runAgent<string, SqlAgentSuccess>({
     name: "sql",
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: deps.systemPromptOverride ?? SYSTEM_PROMPT,
     cheapRole: "sqlGen",
     escalationRole: deps.escalationRole ?? escalationFor("sqlGen"),
     lane: "brain",

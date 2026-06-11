@@ -1,4 +1,4 @@
-import { getPool } from "../db/client.js";
+import { getPool, getDataPool } from "../db/client.js";
 import {
   introspectSchema,
   type SchemaDescription,
@@ -103,13 +103,22 @@ export async function fetchGlossary(pool: Pool): Promise<GlossaryEntry[]> {
 }
 
 /**
- * Fetches the ground truth ONCE: the introspected domain schema plus all
- * glossary rows. Pure data — no model calls.
+ * Fetches the ground truth ONCE: the introspected domain schema (from the DATA
+ * database the questions run against) plus all glossary rows (from the APP
+ * database where Hive keeps its own brain state). Pure data — no model calls.
+ *
+ * Both default to their respective pools; pass overrides for tests. When a single
+ * database is configured, getDataPool() returns the app pool, so this collapses
+ * to the original single-pool behavior.
  */
-export async function fetchGroundTruth(pool?: Pool): Promise<RawContext> {
-  const p = pool ?? getPool();
-  const schema = await introspectSchema(p, { excludeTables: INTERNAL_TABLES });
-  const glossary = await fetchGlossary(p);
+export async function fetchGroundTruth(
+  dataPool?: Pool,
+  appPool?: Pool,
+): Promise<RawContext> {
+  const data = dataPool ?? getDataPool();
+  const app = appPool ?? getPool();
+  const schema = await introspectSchema(data, { excludeTables: INTERNAL_TABLES });
+  const glossary = await fetchGlossary(app);
   return { schema, glossary };
 }
 
@@ -225,8 +234,12 @@ export function createContextProvider(raw: RawContext): ContextProvider {
 
 /**
  * Convenience: fetch the ground truth once and return a ready context provider.
+ * `dataPool` introspects the analytics schema; `appPool` reads the glossary.
  */
-export async function buildContext(pool?: Pool): Promise<ContextProvider> {
-  const raw = await fetchGroundTruth(pool);
+export async function buildContext(
+  dataPool?: Pool,
+  appPool?: Pool,
+): Promise<ContextProvider> {
+  const raw = await fetchGroundTruth(dataPool, appPool);
   return createContextProvider(raw);
 }

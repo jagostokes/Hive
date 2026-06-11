@@ -2,6 +2,9 @@
 node_modules
 dist
 
+# Generated training reports
+data/reports
+
 # Env (keep .env.example)
 .env
 .env.local
