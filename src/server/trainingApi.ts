@@ -27,6 +27,7 @@ import {
 } from "../agents/glossaryGrowth.js";
 import { runSqlAgent } from "../agents/sqlAgent.js";
 import { runReviewAgent } from "../agents/reviewAgent.js";
+import { performGenesis } from "../verifiers/verifierGenesis.js";
 import { REVIEW_POLICY } from "../../config/models.js";
 import { getLedger, resetLedger } from "../models/index.js";
 
@@ -71,6 +72,7 @@ interface TrainingSummary {
   totalCostUsd: number;
   promptSurgeries: number;
   reviewSurgeries: number;
+  synthesizedVerifiers: number;
   glossaryTermsLearned: number;
   learnedExamples: number;
   firstTenSuccessRate: number;
@@ -198,6 +200,7 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
   let totalCost = 0;
   let surgeryCount = 0;
   let reviewSurgeryCount = 0;
+  let synthesizedVerifierCount = 0;
   let glossaryCount = 0;
   let exampleCount = 0;
 
@@ -363,6 +366,24 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
               run.metrics.push(evolveEvent);
               trainingEmitter.emit(`train:${runId}`, evolveEvent);
             }
+
+            // Verifier Genesis: synthesize a new test for the quality failure
+            // the objective verifier missed, so it's caught automatically next time.
+            try {
+              await performGenesis(pool, {
+                stage: "sql",
+                failureDescription:
+                  `${review.critique}` +
+                  (review.issues.length
+                    ? ` [issues: ${review.issues.join(", ")}]`
+                    : ""),
+                failingOutput: sqlResult.data.sql,
+                inputContext: `Question: ${q.question}\nSchema: ${reviewSchemaStr}`,
+                existingVerifierResult:
+                  "passed objective verification (SQL ran and returned rows) but review flagged a quality issue",
+              });
+              synthesizedVerifierCount++;
+            } catch {}
           }
         } catch {}
       }
@@ -437,6 +458,7 @@ async function runTrainingLoop(runId: string, numQuestions: number): Promise<voi
     totalCostUsd: totalCost,
     promptSurgeries: surgeryCount,
     reviewSurgeries: reviewSurgeryCount,
+    synthesizedVerifiers: synthesizedVerifierCount,
     glossaryTermsLearned: glossaryCount,
     learnedExamples: exampleCount,
     firstTenSuccessRate: first10.length > 0
